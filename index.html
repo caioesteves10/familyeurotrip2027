@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="EuroTrip">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,10 +29,11 @@ body{background:var(--ink);color:var(--text);
  max-width:520px;margin:0 auto;min-height:100vh;
  padding-bottom:calc(78px + env(safe-area-inset-bottom));
  font-feature-settings:"tnum" 1,"cv05" 1}
-body::before{content:"";position:fixed;inset:0 0 auto 0;height:220px;pointer-events:none;z-index:0;
+body::before{content:"";position:fixed;inset:0 0 auto 0;height:calc(220px + env(safe-area-inset-top));pointer-events:none;z-index:0;
  background:radial-gradient(120% 100% at 12% 0%,rgba(228,87,126,.16),transparent 60%),
             radial-gradient(120% 100% at 90% 6%,rgba(90,169,230,.14),transparent 62%)}
-.wrap{position:relative;z-index:1;padding:14px 14px 0}
+.wrap{position:relative;z-index:1;padding:calc(14px + env(safe-area-inset-top)) 14px 0;
+ padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}
 .hidden{display:none!important}
 b{font-weight:700}
 a{color:var(--mun)}
@@ -152,6 +153,15 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .kpi .v{font-size:19px;font-weight:800;margin-top:2px;letter-spacing:-.01em}
 .kpi.warn .v{color:var(--warn)} .kpi.ok .v{color:var(--ok)}
 
+/* lista de depósitos com scroll */
+.deplist{max-height:236px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+ border:1px solid var(--line);border-radius:14px;padding:8px 8px 1px;margin-bottom:2px;
+ -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 22px),transparent);
+ mask-image:linear-gradient(180deg,#000 calc(100% - 22px),transparent)}
+.deplist .li{margin-bottom:7px}
+.deplist::-webkit-scrollbar{width:5px}
+.deplist::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+
 /* meses do cofre */
 .mrow{display:flex;align-items:center;gap:10px;padding:8px 0}
 .mrow+.mrow{border-top:1px solid var(--line)}
@@ -233,7 +243,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .lg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 
 /* login */
-.login{padding:34px 20px;min-height:100vh;display:flex;flex-direction:column;justify-content:center;max-width:420px;margin:0 auto}
+.login{padding:calc(34px + env(safe-area-inset-top)) 20px 34px;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;max-width:420px;margin:0 auto}
 .login .disp{font-size:40px;text-align:center;margin:8px 0 4px}
 .login .ll{color:var(--muted);text-align:center;font-size:13.5px;margin:14px 0 16px}
 .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px}
@@ -656,6 +666,7 @@ async function savePessoa(nome,obj){
   catch(e){toast("Não deu para salvar");console.error(e);}
 }
 const meDoc=()=>STATE.pessoas[STATE.me]||{meta:0,depositos:[],compras:[],checklist:[],pessoais:[]};
+const checklistMaster=()=>{const m=STATE.config.checklistMaster;return (Array.isArray(m)&&m.length)?m:SEED.checklistModelo;};
 
 /* ---- 6. LOGIN ------------------------------------------ */
 let pick=null;
@@ -800,12 +811,20 @@ function mesesRestantes(){
   return Math.max(1,(t.getFullYear()-sy)*12+(t.getMonth()-sm));
 }
 const antesDoPlano=()=>{const i=iniPoup();return !!i&&monthKey(new Date())<i;};
+function proxMes(mk){const[y,m]=mk.split("-").map(Number);const d=new Date(y,m,1);return monthKey(d);}
 function mesInfo(p){
   const mk=monthKey(new Date()),mr=mesesRestantes(),antes=antesDoPlano();
   const total=guardado(p),noMes=(depMonths(p)[mk]||0);
+  /* alvo do mês corrente: o que faltava no início do mês, dividido pelos meses restantes */
   const alvo=Math.max(0,(metaDe(p)-(total-noMes))/mr);
+  const cumpriu=!antes&&noMes>=alvo-0.005;
+  /* ritmo daqui pra frente: o que ainda falta guardado hoje, dividido pelos meses que sobram DEPOIS deste */
+  const faltaTotal=Math.max(0,metaDe(p)-total);
+  const mrDepois=Math.max(1,mr-1);
+  const ritmoFuturo=faltaTotal>0?faltaTotal/mrDepois:0;
   return {mk:mk,alvo:alvo,guardado:noMes,falta:Math.max(0,alvo-noMes),antes:antes,
-          ok:!antes&&noMes>=alvo-0.005,pct:alvo>0?clamp(noMes/alvo*100,0,100):100,meses:mr};
+          ok:cumpriu,pct:alvo>0?clamp(noMes/alvo*100,0,100):100,meses:mr,
+          ritmoFuturo:ritmoFuturo,proximo:proxMes(mk),faltaTotal:faltaTotal,acabou:faltaTotal<=0.005};
 }
 function mesesStrip(map){
   const keys=Object.keys(map).sort().slice(-6);
@@ -857,40 +876,46 @@ function renderCofre(){
   </div>
 
   <div class="sect">${M.antes?"Plano mensal":"Este mês"}<span class="r">${M.antes?"começa em "+monthLabel(iniPoup()):monthLabel(M.mk)}</span></div>
-  <div class="card ${M.ok?"okline":""}">
-    <div class="row">
-      <div class="grow"><div class="lbl">${M.antes?"Vai precisar guardar por mês":"Preciso guardar este mês"}</div>
-        <div class="disp money" style="font-size:27px;color:${M.ok?"var(--ok)":"var(--ber)"}">${fmt(M.alvo)}</div></div>
-      <div class="badge ${M.ok?"on":""}">${M.antes?"a partir de "+monthLabel(iniPoup()):(M.ok?"✓ guardado":"pendente")}</div>
-    </div>
-    ${M.antes?`<div class="note" style="margin:10px 0 0">São ${M.meses} meses de ${monthLabel(iniPoup())} até a viagem. Se quiser adiantar, pode guardar desde já.</div>`:
-    `<div class="rail ${M.ok?"ok":""}" style="margin:11px 0 6px"><i style="width:${M.pct}%"></i></div>
-    <div class="note" style="margin:0">${M.ok?
-      `Você já guardou <b>${fmt(M.guardado)}</b> em ${monthLabel(M.mk)}. Mês fechado — o resto é bônus.`:
-      `Guardou <b>${fmt(M.guardado)}</b> de ${fmt(M.alvo)}. Faltam <b>${fmt(M.falta)}</b>.`}</div>`}
+  <div class="card ${M.ok||M.acabou?"okline":""}">
+    ${M.acabou?
+    `<div class="row"><div class="grow"><div class="lbl">Meta batida</div>
+      <div class="disp money" style="font-size:26px;color:var(--ok)">tudo guardado 🎉</div></div>
+      <div class="badge on">✓ completo</div></div>
+     <div class="note" style="margin:10px 0 0">Você já tem o suficiente para a viagem. Depósitos daqui pra frente são extra.</div>`:
+    (M.antes?
+    `<div class="row"><div class="grow"><div class="lbl">Vai precisar guardar por mês</div>
+      <div class="disp money" style="font-size:27px;color:var(--ber)">${fmt(M.alvo)}</div></div>
+      <div class="badge">a partir de ${monthLabel(iniPoup())}</div></div>
+     <div class="note" style="margin:10px 0 0">São ${M.meses} meses de ${monthLabel(iniPoup())} até a viagem. Se quiser adiantar, pode guardar desde já.</div>`:
+    `<div class="row"><div class="grow"><div class="lbl">${M.ok?"Guardado este mês":"Preciso guardar este mês"}</div>
+      <div class="disp money" style="font-size:27px;color:${M.ok?"var(--ok)":"var(--ber)"}">${M.ok?fmt(M.guardado):fmt(M.alvo)}</div></div>
+      <div class="badge ${M.ok?"on":""}">${M.ok?"✓ mês fechado":"pendente"}</div></div>
+     <div class="rail ${M.ok?"ok":""}" style="margin:11px 0 6px"><i style="width:${M.pct}%"></i></div>
+     <div class="note" style="margin:0">${M.ok?
+      `A partir de ${monthLabel(M.proximo)}, precisa guardar <b>${fmt(M.ritmoFuturo)}</b> por mês — faltam <b>${fmt(M.faltaTotal)}</b> em ${M.meses-1} ${M.meses-1===1?"mês":"meses"}.`:
+      `Guardou <b>${fmt(M.guardado)}</b> de ${fmt(M.alvo)}. Faltam <b>${fmt(M.falta)}</b> este mês.`}</div>`)}
     <div class="row" style="gap:8px;margin-top:11px">
-      ${(M.ok||M.antes||done)?"":`<button class="btn" id="quick" style="flex:2">Guardei ${fmtCur(M.falta,moedaDe(me))}</button>`}
-      <button class="btn ${(M.ok||M.antes||done)?"":"sec"}" id="dpadd" style="flex:1">+ Adicionar ao cofre</button>
+      ${(M.ok||M.antes||M.acabou)?"":`<button class="btn" id="quick" style="flex:2">Guardei ${fmtCur(M.falta,moedaDe(me))}</button>`}
+      <button class="btn ${(M.ok||M.antes||M.acabou)?"":"sec"}" id="dpadd" style="flex:1">+ Adicionar ao cofre</button>
     </div>
   </div>
 
   ${keys.length?`<div class="sect">Últimos meses</div>${mesesStrip(mm)}`:""}
 
   <div class="sect">Meus depósitos<span class="r">${deps.length||"nenhum"}</span></div>
-  ${deps.length?deps.map(x=>`<div class="li">
+  ${deps.length?`<div class="${deps.length>4?"deplist":""}">`+deps.map(x=>`<div class="li">
       <div class="t"><div class="n money">${fmtIn(x.valor,x.moeda||"BRL")}</div>
       <div class="s">${monthLabel(x.mes||M.mk)}${x.nota?" · "+esc(x.nota):""}</div></div>
-      <button class="x" data-del="${x.id}" aria-label="Excluir">✕</button></div>`).join(""):
+      <button class="x" data-del="${x.id}" aria-label="Excluir">✕</button></div>`).join("")+`</div>`:
     '<div class="empty">Nada guardado ainda.<br>O primeiro depósito é o mais difícil.</div>'}
 
   <div class="sect">A família</div>
   <div class="card">
-    <table class="tb"><thead><tr><th>Pessoa</th><th>Guardado</th><th>%</th><th>Mês</th></tr></thead><tbody>
-    ${PEOPLE.map(p=>{const mi=mesInfo(p),m=metaDe(p),g=guardado(p);
+    <table class="tb"><thead><tr><th>Pessoa</th><th>Guardado</th><th>% da meta</th></tr></thead><tbody>
+    ${PEOPLE.map(p=>{const m=metaDe(p),g=guardado(p);
       return `<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(g)}</td>
-      <td style="color:${m&&g>=m?"var(--ok)":"var(--muted)"}">${m?Math.round(g/m*100):0}%</td>
-      <td style="color:${mi.ok?"var(--ok)":"var(--dim)"}">${mi.antes?"—":(mi.ok?"✓":Math.round(mi.pct)+"%")}</td></tr>`;}).join("")}
-    </tbody><tfoot><tr><td>Total</td><td class="money">${fmt(PEOPLE.reduce((a,p)=>a+guardado(p),0))}</td><td></td><td></td></tr></tfoot></table>
+      <td style="color:${m&&g>=m?"var(--ok)":"var(--muted)"}">${m?Math.round(g/m*100):0}%</td></tr>`;}).join("")}
+    </tbody><tfoot><tr><td>Total</td><td class="money">${fmt(PEOPLE.reduce((a,p)=>a+guardado(p),0))}</td><td></td></tr></tfoot></table>
   </div>
   ${fm>0?`<div class="note" style="text-align:center">A meta não inclui ${fmt(fm)} da sua passagem aérea, que vai parcelada no cartão. O plano completo está em Custos.</div>`:""}`;
 
@@ -1147,7 +1172,7 @@ function renderCheck(){
       <div class="grow"><input id="ckn" placeholder="Novo item" aria-label="Novo item do checklist"></div>
       <button class="btn sm" id="ckadd">Incluir</button>
     </div>
-    ${chk.length?"":'<button class="btn sec" id="ckseed" style="margin-top:9px">Carregar lista sugerida</button>'}
+    <button class="btn sec" id="ckseed" style="margin-top:9px">${chk.length?"Puxar itens novos da lista master":"Carregar lista master"}</button>
   </div>
 
   ${falta.length?`<div class="sect">Falta fazer<span class="r">${falta.length}</span></div>`+
@@ -1163,6 +1188,7 @@ function renderCheck(){
       <div class="tick on" data-ktog="${i.id}" role="button" tabindex="0">✓</div>
       <div class="t"><div class="n">${esc(i.item)}</div></div>
       <button class="x" data-kdel="${i.id}" aria-label="Excluir">✕</button></div>`).join(""):""}
+  <div class="note">Sua lista é só sua — marcar, adicionar ou apagar itens aqui não mexe na de ninguém.${isAdmin()?" A lista master que todos puxam fica em ⚙ → Ferramentas.":""}</div>
 
   <div class="sect">Como está a família</div>
   <div class="card"><table class="tb"><thead><tr><th>Pessoa</th><th>Feitos</th><th>%</th></tr></thead><tbody>
@@ -1178,7 +1204,14 @@ function renderCheck(){
   $("#ckadd").onclick=add;
   $("#ckn").addEventListener("keydown",e=>{if(e.key==="Enter")add();});
   const ks=$("#ckseed");
-  if(ks)ks.onclick=()=>{savePessoa(me,{checklist:SEED.checklistModelo.map(t=>({id:uid(),item:t,ok:false}))});toast("Lista carregada");};
+  if(ks)ks.onclick=()=>{
+    const atual=(meDoc().checklist||[]);
+    const tenho=new Set(atual.map(x=>x.item.trim().toLowerCase()));
+    const novos=checklistMaster().filter(t=>!tenho.has(String(t).trim().toLowerCase()))
+      .map(t=>({id:uid(),item:t,ok:false}));
+    if(!novos.length){toast("Você já tem tudo da master");return;}
+    savePessoa(me,{checklist:atual.concat(novos)});
+    toast(novos.length+(novos.length===1?" item adicionado":" itens adicionados"));};
   $("#p-check").querySelectorAll("[data-ktog]").forEach(b=>b.onclick=()=>
     savePessoa(me,{checklist:(meDoc().checklist||[]).map(x=>x.id===b.dataset.ktog?Object.assign({},x,{ok:!x.ok}):x)}));
   $("#p-check").querySelectorAll("[data-kdel]").forEach(b=>b.onclick=()=>
@@ -1406,6 +1439,14 @@ function renderAdmin(){
       <button class="btn dgr" id="rroteiro" style="margin-top:9px">Restaurar roteiro sugerido</button>
       <button class="btn dgr" id="rcustos" style="margin-top:9px">Restaurar orçamento sugerido</button>
     </div>
+
+    <div class="sect">Checklist master<span class="r">${checklistMaster().length} itens</span></div>
+    <div class="card">
+      <div class="note" style="margin:0 0 10px">Esta é a lista que cada pessoa puxa para dentro da própria conta. Editar aqui <b>não</b> altera as listas de quem já puxou — só muda o que aparece para quem puxar a partir de agora.</div>
+      <textarea id="mstr" rows="10" placeholder="Um item por linha">${esc(checklistMaster().join("\n"))}</textarea>
+      <button class="btn" id="mstrsave" style="margin-top:10px">Salvar lista master</button>
+      <button class="btn gh" id="mstrreset" style="margin-top:8px">Voltar para a lista padrão</button>
+    </div>
   </div>`;
 
   $("#aseg").querySelectorAll("[data-v]").forEach(x=>x.onclick=()=>{admView=x.dataset.v;renderAdmin();});
@@ -1456,6 +1497,14 @@ function renderAdmin(){
   const rc=$("#rcustos");
   if(rc)rc.onclick=()=>{if(confirm("Substituir o orçamento atual pelo sugerido?"))
     {saveDoc("custos",JSON.parse(JSON.stringify(SEED.custos)));toast("Orçamento restaurado");}};
+  const ms=$("#mstrsave");
+  if(ms)ms.onclick=()=>{
+    const linhas=$("#mstr").value.split("\n").map(x=>x.trim()).filter(Boolean);
+    if(!linhas.length){toast("A lista não pode ficar vazia");return;}
+    saveDoc("config",{checklistMaster:linhas});toast("Lista master salva");};
+  const mr=$("#mstrreset");
+  if(mr)mr.onclick=()=>{if(confirm("Voltar a lista master para a padrão do app?"))
+    {saveDoc("config",{checklistMaster:SEED.checklistModelo.slice()});toast("Lista master restaurada");}};
 }
 
 /* ---- 17. BOOT ------------------------------------------ */
