@@ -146,6 +146,14 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .kpi .v{font-size:19px;font-weight:800;margin-top:2px;letter-spacing:-.01em}
 .kpi.warn .v{color:var(--warn)} .kpi.ok .v{color:var(--ok)}
 
+/* meses do cofre */
+.mrow{display:flex;align-items:center;gap:10px;padding:8px 0}
+.mrow+.mrow{border-top:1px solid var(--line)}
+.ml{font-size:12px;font-weight:700;color:var(--muted);flex:0 0 50px}
+.mb{flex:1;height:6px;border-radius:3px;background:var(--ink2);overflow:hidden}
+.mb i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--par),var(--ber))}
+.mv{font-size:13.5px;font-weight:700;flex:0 0 auto}
+
 /* rótulos, links e selos */
 .lbl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:var(--dim)}
 .lnk{color:var(--mun);font-weight:700;cursor:pointer;border-bottom:1px dashed rgba(90,169,230,.45)}
@@ -320,19 +328,21 @@ const NS={viagem:"viagem",pessoas:"viajantes"};
 /* ---- 2. DADOS DA VIAGEM (edite aqui os PINs) ------------ */
 const DATA={
   people:["Caio","Bê","Ronaldo","Shirlei"],
+  /* moeda em que cada um guarda dinheiro */
+  moedaPadrao:{"Caio":"USD","Bê":"USD","Ronaldo":"BRL","Shirlei":"BRL"},
   pins:{"Caio":"1010","Bê":"2020","Ronaldo":"3030","Shirlei":"4040"},
   adminPin:"2027",
   seed:{
     config:{
       nome:"Trilha 2027", tagline:"Viagem em família",
       inicio:"2027-10-08", fim:"2027-10-20",
-      moeda:"BRL", fx:{EUR:6.20,USD:5.45},
+      moeda:"BRL", moedaViagem:"EUR", fx:{EUR:6.20,USD:5.45},
       cidades:[
         {k:"par",n:"Paris",  pais:"🇫🇷", de:"2027-10-08", ate:"2027-10-13"},
         {k:"mun",n:"Munique",pais:"🇩🇪", de:"2027-10-13", ate:"2027-10-16"},
         {k:"ber",n:"Berlim", pais:"🇩🇪", de:"2027-10-16", ate:"2027-10-20"}
       ],
-      nota:"Um pouquinho por mês agora, zero preocupação em outubro de 2027."
+      nota:"A passagem fica fora da meta (parcelada no cartão), mas entra no plano total."
     },
     roteiro:{dias:[
       {id:"d01",data:"2027-10-08",cidade:"par",titulo:"Chegada em Paris",itens:[
@@ -388,10 +398,10 @@ const DATA={
         {id:"a1",hora:"—",titulo:"Traslado para o aeroporto de Berlim"}]}
     ]},
     custos:{itens:[
-      {id:"c00a",cat:"Passagens",desc:"Passagem aérea — Caio (saindo de Chicago)",valor:980,moeda:"USD",quem:["Caio"]},
-      {id:"c00b",cat:"Passagens",desc:"Passagem aérea — Bê (saindo do Rio)",valor:7800,moeda:"BRL",quem:["Bê"]},
-      {id:"c00c",cat:"Passagens",desc:"Passagem aérea — Ronaldo (saindo do Rio)",valor:7800,moeda:"BRL",quem:["Ronaldo"]},
-      {id:"c00d",cat:"Passagens",desc:"Passagem aérea — Shirlei (saindo do Rio)",valor:7800,moeda:"BRL",quem:["Shirlei"]},
+      {id:"c00a",cat:"Passagens",desc:"Passagem aérea — Caio (saindo de Chicago)",valor:980,moeda:"USD",quem:["Caio"],naMeta:false},
+      {id:"c00b",cat:"Passagens",desc:"Passagem aérea — Bê (saindo do Rio)",valor:7800,moeda:"BRL",quem:["Bê"],naMeta:false},
+      {id:"c00c",cat:"Passagens",desc:"Passagem aérea — Ronaldo (saindo do Rio)",valor:7800,moeda:"BRL",quem:["Ronaldo"],naMeta:false},
+      {id:"c00d",cat:"Passagens",desc:"Passagem aérea — Shirlei (saindo do Rio)",valor:7800,moeda:"BRL",quem:["Shirlei"],naMeta:false},
       {id:"c01",cat:"Hospedagem",desc:"Paris — 5 noites (quarto família)",valor:1300,moeda:"EUR",quem:"todos"},
       {id:"c02",cat:"Hospedagem",desc:"Munique — 3 noites",valor:660,moeda:"EUR",quem:"todos"},
       {id:"c03",cat:"Hospedagem",desc:"Berlim — 4 noites",valor:760,moeda:"EUR",quem:"todos"},
@@ -458,7 +468,7 @@ const STATE={
   racha:JSON.parse(JSON.stringify(SEED.racha)),
   pessoas:{},
   me:localStorage.getItem(LS.me)||null,
-  cur:localStorage.getItem(LS.cur)||"BRL"
+  cur:localStorage.getItem(LS.cur)||""
 };
 PEOPLE.forEach(p=>STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[]});
 
@@ -487,9 +497,45 @@ function daysTo(s){const d=ymd(s);const t=new Date();t.setHours(0,0,0,0);return 
 function monthsTo(s){const d=ymd(s),t=new Date();let m=(d.getFullYear()-t.getFullYear())*12+(d.getMonth()-t.getMonth());if(d.getDate()<t.getDate())m-=0;return Math.max(1,m);}
 
 /* dinheiro: tudo guardado em centavos de BRL internamente */
-function rate(m){const fx=STATE.config.fx||{};return m==="BRL"?1:(Number(fx[m])||1);}
+let FXLIVE=null;
+function rate(m){
+  if(!m||m==="BRL")return 1;
+  if(FXLIVE&&FXLIVE[m]>0)return FXLIVE[m];
+  const fx=STATE.config.fx||{};return Number(fx[m])||1;
+}
+/* cotação comercial do dia, com cache de 6h e duas fontes */
+async function carregarFX(){
+  try{
+    const c=JSON.parse(localStorage.getItem("tr27_fx")||"null");
+    if(c&&c.EUR>0&&Date.now()-c.at<6*3600*1000){FXLIVE=c;renderAll();return;}
+  }catch(e){}
+  const fontes=[
+    async()=>{const r=await fetch("https://economia.awesomeapi.com.br/json/last/EUR-BRL,USD-BRL");
+      const j=await r.json();
+      const e=parseFloat(j.EURBRL&&j.EURBRL.bid),u=parseFloat(j.USDBRL&&j.USDBRL.bid);
+      if(e>0&&u>0)return{EUR:e,USD:u,src:"AwesomeAPI"};throw 0;},
+    async()=>{const r=await fetch("https://api.frankfurter.app/latest?from=BRL&to=EUR,USD");
+      const j=await r.json();
+      if(j&&j.rates&&j.rates.EUR>0)return{EUR:1/j.rates.EUR,USD:1/j.rates.USD,src:"BCE"};throw 0;}
+  ];
+  for(const f of fontes){
+    try{const v=await f();v.at=Date.now();FXLIVE=v;
+      try{localStorage.setItem("tr27_fx",JSON.stringify(v));}catch(e){}
+      renderAll();return;}catch(e){}
+  }
+  console.warn("Não consegui buscar a cotação; usando a do admin.");
+}
 function toBRL(v,m){return Number(v||0)*rate(m||"BRL");}
-function disp(brl){const c=STATE.cur;return c==="BRL"?brl:brl/rate(c);}
+function disp(brl){return conv(brl,STATE.cur);}
+const conv=(brl,cur)=>(!cur||cur==="BRL")?Number(brl)||0:(Number(brl)||0)/rate(cur);
+function fmtCur(brl,cur,dec){
+  const c=cur||"BRL",v=conv(brl,c);
+  const d=dec!=null?dec:(Math.abs(v)>=1000?0:2);
+  return new Intl.NumberFormat("pt-BR",{style:"currency",currency:c,minimumFractionDigits:d,maximumFractionDigits:d}).format(v);
+}
+const moedaDe=p=>(DATA.moedaPadrao||{})[p]||"BRL";
+const MOEDA_VIAGEM=()=>STATE.config.moedaViagem||"EUR";
+const toMO=(v,m)=>conv(toBRL(v,m),MOEDA_VIAGEM());
 function fmt(brl,opts){
   const c=STATE.cur, v=disp(Number(brl)||0);
   const dec=(opts&&opts.dec!=null)?opts.dec:(Math.abs(v)>=1000?0:2);
@@ -625,6 +671,7 @@ $("#logout").onclick=()=>{localStorage.removeItem(LS.me);STATE.me=null;showLogin
 function enterApp(){
   $("#login").classList.add("hidden");$("#app").classList.remove("hidden");$("#nav").classList.remove("hidden");
   $("#mename").textContent=STATE.me;
+  if(!STATE.cur){STATE.cur=moedaDe(STATE.me);localStorage.setItem(LS.cur,STATE.cur);}
   renderAll();
 }
 
@@ -659,13 +706,20 @@ function itemPeople(it){
   const g=it.quem.filter(p=>PEOPLE.includes(p));
   return g.length?g:PEOPLE.slice();
 }
-function shareShared(p){
-  let s=0;(STATE.custos.itens||[]).forEach(it=>{const g=itemPeople(it);if(g.includes(p))s+=toBRL(it.valor,it.moeda)/g.length;});
+const naMeta=it=>it&&it.naMeta===false?false:true;
+function shareShared(p,todos){
+  let s=0;(STATE.custos.itens||[]).forEach(it=>{
+    if(!todos&&!naMeta(it))return;
+    const g=itemPeople(it);if(g.includes(p))s+=toBRL(it.valor,it.moeda)/g.length;});
   return s;
 }
+/* plano = tudo. orçamento/meta = tudo menos o que está fora da meta (passagens) */
+const planoDe=p=>shareShared(p,true)+personalTotal(p);
+const foraDaMeta=p=>shareShared(p,true)-shareShared(p,false);
 const personalTotal=p=>((STATE.pessoas[p]||{}).pessoais||[]).reduce((a,i)=>a+toBRL(i.valor,i.moeda),0);
 const orcamentoDe=p=>shareShared(p)+personalTotal(p);
 const totalShared=()=>(STATE.custos.itens||[]).reduce((a,it)=>a+toBRL(it.valor,it.moeda),0);
+const totalMeta=()=>(STATE.custos.itens||[]).filter(naMeta).reduce((a,it)=>a+toBRL(it.valor,it.moeda),0);
 const guardado=p=>((STATE.pessoas[p]||{}).depositos||[]).reduce((a,d)=>a+toBRL(d.valor,d.moeda||"BRL"),0);
 function metaDe(p){const m=Number((STATE.pessoas[p]||{}).meta)||0;return m>0?m:orcamentoDe(p);}
 const metaAuto=p=>!(Number((STATE.pessoas[p]||{}).meta)>0);
@@ -693,10 +747,13 @@ function renderHeader(){
   else if(daysTo(c.fim)>=0){$("#cdn").textContent="✈";$("#cdu").textContent="em viagem";}
   else{$("#cdn").textContent="✓";$("#cdu").textContent="voltamos";}
   const fx=c.fx||{};
+  const viva=!!FXLIVE;
+  const hora=viva?new Date(FXLIVE.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
   $("#fxline").innerHTML=
-    `<span style="color:var(--dim)">€ 1 = ${fmtIn(fx.EUR||0,"BRL")}</span>`+
+    `<span style="color:var(--dim)">€1 = ${fmtIn(rate("EUR"),"BRL")} · US$1 = ${fmtIn(rate("USD"),"BRL")}`+
+    (viva?` <span style="color:var(--ok)">• ${esc(FXLIVE.src)} ${esc(hora)}</span>`:` <span style="color:var(--warn)">• taxa fixa</span>`)+`</span>`+
     `<span style="margin-left:auto;display:flex;gap:4px">`+
-      ["BRL","EUR"].map(m=>`<span class="pill ${STATE.cur===m?"ok":""}" data-cur="${m}" style="cursor:pointer">${m}</span>`).join("")+
+      ["BRL","USD","EUR"].map(m=>`<span class="pill ${STATE.cur===m?"ok":""}" data-cur="${m}" style="cursor:pointer">${m}</span>`).join("")+
     `</span>`;
   $("#fxline").querySelectorAll("[data-cur]").forEach(el=>el.onclick=()=>{
     STATE.cur=el.dataset.cur;localStorage.setItem(LS.cur,STATE.cur);renderAll();});
@@ -717,38 +774,25 @@ function mesInfo(p){
   return {mk:mk,alvo:alvo,guardado:noMes,falta:Math.max(0,alvo-noMes),
           ok:noMes>=alvo-0.005,pct:alvo>0?clamp(noMes/alvo*100,0,100):100,meses:mr};
 }
-function svgBars(map,alvo){
-  const keys=Object.keys(map).sort();
+function mesesStrip(map){
+  const keys=Object.keys(map).sort().slice(-6);
   if(!keys.length)return "";
-  const W=100,H=104,pad=14,n=keys.length;
-  const vals=keys.map(k=>map[k]);
-  const max=Math.max(alvo||0,...vals)*1.15||1;
-  const bw=Math.min(11,(W-4)/n-1.2);
-  const bars=keys.map((k,i)=>{
-    const x=2+i*((W-4)/n)+(((W-4)/n)-bw)/2;
-    const h=(vals[i]/max)*(H-pad-14);
-    return `<rect x="${x.toFixed(2)}" y="${(H-14-h).toFixed(2)}" width="${bw.toFixed(2)}" height="${Math.max(1,h).toFixed(2)}" rx="1.6" fill="url(#g1)"/>`;
-  }).join("");
-  const ay=alvo?H-14-(alvo/max)*(H-pad-14):0;
-  const line=alvo?`<line x1="0" y1="${ay.toFixed(2)}" x2="${W}" y2="${ay.toFixed(2)}" stroke="#F0A93B" stroke-width=".7" stroke-dasharray="2 2"/>`:"";
-  const labs=keys.map((k,i)=>{
-    const x=2+i*((W-4)/n)+((W-4)/n)/2;
-    return n>10&&i%2?"":`<text x="${x.toFixed(2)}" y="${H-4}" fill="#63708F" font-size="5.2" text-anchor="middle" font-family="Inter">${monthLabel(k)}</text>`;
-  }).join("");
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#E4577E"/><stop offset="1" stop-color="#5AA9E6"/></linearGradient></defs>
-    ${line}${bars}${labs}</svg>`;
+  const max=Math.max.apply(null,keys.map(k=>map[k]))||1;
+  return `<div class="card">`+keys.map(k=>`<div class="mrow">
+      <span class="ml">${monthLabel(k)}</span>
+      <span class="mb"><i style="width:${Math.max(3,map[k]/max*100)}%"></i></span>
+      <span class="mv money">${fmt(map[k])}</span></div>`).join("")+`</div>`;
 }
 function depositoModal(valor){
-  const me=STATE.me,mk=monthKey(new Date());
+  const me=STATE.me,mk=monthKey(new Date()),mo=moedaDe(me);
   openModal("Registrar depósito",[
-    {id:"valor",label:"Valor em "+STATE.cur,type:"money",value:valor?String(valor.toFixed(2)).replace(".",","):"",placeholder:"0,00"},
+    {id:"valor",label:"Valor",type:"money",value:valor?String(conv(valor,mo).toFixed(2)).replace(".",","):"",placeholder:"0,00"},
+    {id:"moeda",label:"Moeda",type:"select",options:["BRL","USD","EUR"],value:mo},
     {id:"mes",label:"Referente a",type:"select",options:monthRange().map(k=>({v:k,l:monthLabel(k)})),value:mk},
     {id:"nota",label:"Nota",placeholder:"opcional"}
   ],v=>{
     if(v.valor<=0){toast("Informe um valor");return false;}
-    savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:v.valor,moeda:STATE.cur,mes:v.mes||mk,nota:v.nota}])});
+    savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:v.valor,moeda:v.moeda||mo,mes:v.mes||mk,nota:v.nota}])});
     toast("Depósito registrado");},"Registrar");
 }
 function renderCofre(){
@@ -756,6 +800,7 @@ function renderCofre(){
   const meta=metaDe(me),sav=guardado(me),falta=Math.max(0,meta-sav);
   const pct=meta>0?clamp(sav/meta*100,0,100):0;
   const done=sav>=meta&&meta>0;
+  const fm=foraDaMeta(me);
   const M=mesInfo(me);
   const mm=depMonths(me),keys=Object.keys(mm).sort();
   const deps=(d.depositos||[]).slice().sort((a,b)=>String(b.mes||"").localeCompare(String(a.mes||""))||String(b.id).localeCompare(String(a.id)));
@@ -766,7 +811,8 @@ function renderCofre(){
       <div class="grow">
         <div class="lbl">Já guardei</div>
         <div class="big money">${fmt(sav)}</div>
-        <div class="of">de ${fmt(meta)} · <span class="lnk" id="metaedit">${metaAuto(me)?"meta automática":"editar meta"}</span></div>
+        <div class="of">de ${fmt(meta)}${STATE.cur!=="EUR"?` · <b style="color:var(--mun)">≈ ${fmtCur(sav,"EUR")}</b>`:""}</div>
+        <div class="of" style="margin-top:2px"><span class="lnk" id="metaedit">${metaAuto(me)?"meta automática":"editar meta"}</span></div>
       </div>
       <div class="pct">${pct.toFixed(0)}%</div>
     </div>
@@ -789,12 +835,11 @@ function renderCofre(){
       `Você já guardou <b>${fmt(M.guardado)}</b> em ${monthLabel(M.mk)}. Mês fechado — o resto é bônus.`:
       `Guardou <b>${fmt(M.guardado)}</b> de ${fmt(M.alvo)}. Faltam <b>${fmt(M.falta)}</b>.`}</div>
     ${done?"":`<div class="row" style="gap:8px;margin-top:11px">
-      ${M.ok?"":`<button class="btn" id="quick" style="flex:2">Guardei ${fmt(M.falta)}</button>`}
+      ${M.ok?"":`<button class="btn" id="quick" style="flex:2">Guardei ${fmtCur(M.falta,moedaDe(me))}</button>`}
       <button class="btn sec" id="dpadd" style="flex:1">Outro valor</button></div>`}
   </div>
 
-  ${keys.length?`<div class="sect">Histórico mensal<span class="r">linha = ritmo necessário</span></div>
-  <div class="card">${svgBars(mm,M.alvo)}</div>`:""}
+  ${keys.length?`<div class="sect">Últimos meses</div>${mesesStrip(mm)}`:""}
 
   <div class="sect">Meus depósitos<span class="r">${deps.length||"nenhum"}</span></div>
   ${deps.length?deps.map(x=>`<div class="li">
@@ -811,10 +856,11 @@ function renderCofre(){
       <td style="color:${m&&g>=m?"var(--ok)":"var(--muted)"}">${m?Math.round(g/m*100):0}%</td>
       <td style="color:${mi.ok?"var(--ok)":"var(--dim)"}">${mi.ok?"✓":Math.round(mi.pct)+"%"}</td></tr>`;}).join("")}
     </tbody><tfoot><tr><td>Total</td><td class="money">${fmt(PEOPLE.reduce((a,p)=>a+guardado(p),0))}</td><td></td><td></td></tr></tfoot></table>
-  </div>`;
+  </div>
+  ${fm>0?`<div class="note" style="text-align:center">A meta não inclui ${fmt(fm)} da sua passagem aérea, que vai parcelada no cartão. O plano completo está em Custos.</div>`:""}`;
 
   const q=$("#quick");if(q)q.onclick=()=>{
-    savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:disp(M.falta),moeda:STATE.cur,mes:M.mk,nota:"meta do mês"}])});
+    savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:conv(M.falta,moedaDe(me)),moeda:moedaDe(me),mes:M.mk,nota:"meta do mês"}])});
     toast("Mês fechado 🎉");};
   const dp=$("#dpadd");if(dp)dp.onclick=()=>depositoModal(0);
   $("#p-cofre").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>
@@ -825,6 +871,7 @@ function renderCofre(){
   ],v=>{
     savePessoa(me,{meta:v.meta>0?toBRL(v.meta,STATE.cur):0});
     toast(v.meta>0?"Meta salva":"Meta automática");},"Salvar");
+
 }
 
 /* ---- 11. CUSTOS (orçamento) ---------------------------- */
@@ -838,12 +885,13 @@ function renderCustos(){
 
   $("#p-custos").innerHTML=`
   <div class="card tight">
-    <div class="row"><div class="grow"><div class="lab" style="font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);font-weight:800">Custo total da viagem</div>
-      <div class="disp money" style="font-size:30px;margin-top:2px">${fmt(tot+totPess)}</div>
-      <div class="note" style="margin-top:4px">${fmt(tot)} no orçamento + ${fmt(totPess)} em extras</div></div>
-      <div style="text-align:right"><div class="k" style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;color:var(--dim)">Seu quinhão</div>
-      <div class="disp money" style="font-size:24px;color:var(--par)">${fmt(orcamentoDe(me))}</div></div>
+    <div class="lbl">Plano financeiro completo</div>
+    <div class="disp money" style="font-size:30px;margin-top:2px">${fmt(tot+totPess)}</div>
+    <div class="kpis" style="margin-top:12px">
+      <div class="kpi"><div class="k">Seu plano total</div><div class="v money">${fmt(planoDe(me))}</div></div>
+      <div class="kpi ok"><div class="k">Sua meta de poupança</div><div class="v money">${fmt(orcamentoDe(me))}</div></div>
     </div>
+    ${foraDaMeta(me)>0?`<div class="note">A diferença de <b>${fmt(foraDaMeta(me))}</b> é a sua passagem aérea, que fica fora da meta por ir parcelada no cartão.</div>`:""}
   </div>
 
   <div class="seg" id="cseg">
@@ -854,11 +902,12 @@ function renderCustos(){
 
   <div class="${custosView==="grupo"?"":"hidden"}">
     <div class="card">
-      <table class="tb"><thead><tr><th>Pessoa</th><th>Viagem</th><th>Extras</th><th>Total</th></tr></thead><tbody>
-      ${PEOPLE.map(p=>`<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(shareShared(p))}</td>
-        <td class="money">${fmt(personalTotal(p))}</td><td class="money"><b>${fmt(orcamentoDe(p))}</b></td></tr>`).join("")}
-      </tbody><tfoot><tr><td>Total</td><td class="money">${fmt(tot)}</td><td class="money">${fmt(totPess)}</td><td class="money">${fmt(tot+totPess)}</td></tr></tfoot></table>
-      <div class="note"><b>Viagem</b> é a parte de cada um no orçamento (incluindo a própria passagem). <b>Extras</b> são gastos que a pessoa cadastrou só pra ela.</div>
+      <table class="tb"><thead><tr><th>Pessoa</th><th>Meta</th><th>Passagem</th><th>Plano</th></tr></thead><tbody>
+      ${PEOPLE.map(p=>`<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(orcamentoDe(p))}</td>
+        <td class="money" style="color:var(--muted)">${fmt(foraDaMeta(p))}</td><td class="money"><b>${fmt(planoDe(p))}</b></td></tr>`).join("")}
+      </tbody><tfoot><tr><td>Total</td><td class="money">${fmt(totalMeta()+totPess)}</td>
+        <td class="money">${fmt(tot-totalMeta())}</td><td class="money">${fmt(tot+totPess)}</td></tr></tfoot></table>
+      <div class="note"><b>Meta</b> é o que precisa estar guardado antes de embarcar. <b>Passagem</b> fica de fora porque vai parcelada. <b>Plano</b> é o custo real da viagem para cada um.</div>
     </div>
     <div class="sect">Por categoria</div>
     <div class="card">
@@ -875,7 +924,7 @@ function renderCustos(){
     ${Object.keys(cats).map(c=>`<div class="sect">${esc(c)}<span class="r">${fmt(cats[c].reduce((a,i)=>a+toBRL(i.valor,i.moeda),0))}</span></div>
       ${cats[c].map(it=>{const g=itemPeople(it);return `<div class="li">
         <div class="t"><div class="n">${esc(it.desc)}</div>
-        <div class="s">${g.length===PEOPLE.length?`todos · ${fmt(toBRL(it.valor,it.moeda)/g.length)} cada`:(g.length===1?"só "+esc(g[0]):g.map(esc).join(", ")+` · ${fmt(toBRL(it.valor,it.moeda)/g.length)} cada`)}</div></div>
+        <div class="s">${g.length===PEOPLE.length?`todos · ${fmt(toBRL(it.valor,it.moeda)/g.length)} cada`:(g.length===1?"só "+esc(g[0]):g.map(esc).join(", ")+` · ${fmt(toBRL(it.valor,it.moeda)/g.length)} cada`)}${naMeta(it)?"":' · <span style="color:var(--warn)">fora da meta</span>'}</div></div>
         <div class="v money">${fmtIn(it.valor,it.moeda)}</div></div>`;}).join("")}`).join("")}
     ${isAdmin()?'<button class="btn sec" id="goadm" style="margin-top:6px">Editar itens no admin</button>':
       '<div class="note">Só o admin edita os itens compartilhados.</div>'}
@@ -1095,10 +1144,12 @@ function renderCheck(){
 }
 
 /* ---- 15. RACHA (despesas e acerto) --------------------- */
+const fmtMO=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:MOEDA_VIAGEM(),
+  minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v)||0);
 function balances(){
   const b={};PEOPLE.forEach(p=>b[p]=0);
   (STATE.racha.despesas||[]).forEach(d=>{
-    const cents=Math.round(toBRL(d.valor,d.moeda)*100);
+    const cents=Math.round(toMO(d.valor,d.moeda)*100);
     const g=(Array.isArray(d.entre)&&d.entre.length?d.entre:PEOPLE).filter(p=>b[p]!=null);
     if(!g.length)return;
     if(b[d.pagou]!=null)b[d.pagou]+=cents;
@@ -1106,65 +1157,78 @@ function balances(){
     g.forEach((p,i)=>b[p]-=each+(i<resto?1:0));
   });
   (STATE.racha.pagamentos||[]).forEach(t=>{
-    const cents=Math.round(toBRL(t.valor,t.moeda)*100);
+    const cents=Math.round(toMO(t.valor,t.moeda)*100);
     if(b[t.de]!=null)b[t.de]+=cents;
     if(b[t.para]!=null)b[t.para]-=cents;
   });
   return b;
 }
-/* menor número possível de transferências (busca exata; ≤8 pessoas) */
-function settle(bal){
-  const names=[],vals=[];
-  Object.keys(bal).forEach(k=>{if(bal[k]!==0){names.push(k);vals.push(bal[k]);}});
-  const n=vals.length;
-  if(!n)return[];
-  if(n>9)return greedy(names,vals);
-  let best=null;
-  (function dfs(i,acc){
-    while(i<n&&vals[i]===0)i++;
-    if(i===n){if(!best||acc.length<best.length)best=acc.slice();return;}
-    if(best&&acc.length>=best.length)return;
-    for(let j=i+1;j<n;j++){
-      if(vals[i]*vals[j]<0){
-        const amt=Math.min(Math.abs(vals[i]),Math.abs(vals[j]));
-        const tr=vals[i]<0?{de:names[i],para:names[j],v:amt}:{de:names[j],para:names[i],v:amt};
-        const oj=vals[j],oi=vals[i];
-        vals[j]+=vals[i];vals[i]=0;
-        acc.push(tr);dfs(i+1,acc);acc.pop();
-        vals[i]=oi;vals[j]=oj;
-      }
-    }
-  })(0,[]);
-  return best||[];
-}
-function greedy(names,vals){
-  const a=names.map((n,i)=>({n:n,v:vals[i]})),out=[];
+/* menor número possível de transferências.
+   1) parte os saldos no MAIOR número de grupos que fecham em zero
+      (busca exata por bitmask — grupos independentes nunca precisam
+       trocar dinheiro entre si);
+   2) dentro de cada grupo, casa sempre o maior devedor com o maior
+      credor, então todo pagamento vai de quem deve para quem tem
+      a receber, sem ninguém virar intermediário.                    */
+function grupoGuloso(names,vals){
+  const a=names.map((n,i)=>({n:n,v:vals[i]})).filter(x=>x.v!==0),out=[];
   let guard=0;
-  while(guard++<200){
+  while(guard++<400){
     a.sort((x,y)=>x.v-y.v);
     const d=a[0],c=a[a.length-1];
     if(!d||!c||d.v>=0||c.v<=0)break;
     const amt=Math.min(-d.v,c.v);
-    out.push({de:d.n,para:c.n,v:amt});d.v+=amt;c.v-=amt;
+    out.push({de:d.n,para:c.n,v:amt});
+    d.v+=amt;c.v-=amt;
   }
   return out;
+}
+function settle(bal){
+  const names=[],vals=[];
+  Object.keys(bal).forEach(k=>{if(bal[k]!==0){names.push(k);vals.push(bal[k]);}});
+  const n=names.length;
+  if(!n)return[];
+  if(n>14)return grupoGuloso(names,vals);
+  const size=1<<n,soma=new Array(size).fill(0);
+  for(let m=1;m<size;m++){const low=m&(-m),i=31-Math.clz32(low);soma[m]=soma[m&(m-1)]+vals[i];}
+  const best=new Array(size).fill(-1),pick=new Array(size).fill(0);
+  best[0]=0;
+  for(let m=1;m<size;m++){
+    const low=m&(-m);
+    for(let sub=m;sub>0;sub=(sub-1)&m){
+      if(!(sub&low))continue;
+      if(soma[sub]!==0)continue;
+      const r=best[m^sub];
+      if(r>=0&&r+1>best[m]){best[m]=r+1;pick[m]=sub;}
+    }
+  }
+  let m=size-1;
+  if(best[m]<0)return grupoGuloso(names,vals);
+  const out=[];
+  while(m>0){
+    const g=pick[m],idx=[];
+    for(let i=0;i<n;i++)if(g&(1<<i))idx.push(i);
+    out.push.apply(out,grupoGuloso(idx.map(i=>names[i]),idx.map(i=>vals[i])));
+    m^=g;
+  }
+  return out.sort((x,y)=>y.v-x.v);
 }
 function renderRacha(){
   const me=STATE.me;
   const desp=(STATE.racha.despesas||[]).slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
   const pags=(STATE.racha.pagamentos||[]).slice().reverse();
   const bal=balances(),trs=settle(Object.assign({},bal));
-  const totalG=(STATE.racha.despesas||[]).reduce((a,d)=>a+toBRL(d.valor,d.moeda),0);
+  const totalG=(STATE.racha.despesas||[]).reduce((a,d)=>a+toMO(d.valor,d.moeda),0);
   const meuC=-(bal[me]||0)/100;
   const hoje=new Date().toISOString().slice(0,10);
   const maxAbs=Math.max(1,...PEOPLE.map(p=>Math.abs(bal[p]||0)));
 
   $("#p-racha").innerHTML=`
   <div class="card tight"><div class="row">
-    <div class="grow"><div class="note" style="margin:0">Gasto do grupo na viagem</div>
-      <div class="disp money" style="font-size:28px">${fmt(totalG)}</div></div>
-    <div style="text-align:right"><div class="note" style="margin:0">${meuC>0?"você deve":"você recebe"}</div>
-      <div class="disp money" style="font-size:22px;color:${Math.abs(meuC)<0.005?"var(--muted)":(meuC>0?"var(--danger)":"var(--ok)")}">${fmt(Math.abs(meuC))}</div></div>
+    <div class="grow"><div class="lbl">Gasto do grupo</div>
+      <div class="disp money" style="font-size:28px">${fmtMO(totalG)}</div></div>
+    <div style="text-align:right"><div class="lbl">${meuC>0?"você deve":"você recebe"}</div>
+      <div class="disp money" style="font-size:22px;color:${Math.abs(meuC)<0.005?"var(--muted)":(meuC>0?"var(--danger)":"var(--ok)")}">${fmtMO(Math.abs(meuC))}</div></div>
   </div></div>
 
   <button class="btn" id="dsadd">+ Lançar despesa</button>
@@ -1172,9 +1236,9 @@ function renderRacha(){
   <div class="sect">Acerto final<span class="r">${trs.length} ${trs.length===1?"transferência":"transferências"}</span></div>
   ${trs.length?trs.map((t,i)=>`<div class="tr">
       <div class="who">${esc(t.de)}<span class="ar">→</span>${esc(t.para)}</div>
-      <div class="v money">${fmt(t.v/100)}</div>
+      <div class="v money">${fmtMO(t.v/100)}</div>
       <button class="btn sm gh" data-quit="${i}">quitar</button></div>`).join("")+
-    '<div class="note">Dívidas já foram cruzadas: cada um paga o mínimo de vezes possível. "Quitar" registra a transferência como feita.</div>':
+    `<div class="note">Tudo em ${MOEDA_VIAGEM()}, para acertarem na moeda corrente no fim da viagem. Dívidas já foram cruzadas: cada um paga o mínimo de vezes possível. "Quitar" registra a transferência como feita.</div>`:
     (totalG?'<div class="okbox">Tudo acertado. Ninguém deve nada a ninguém.</div>':
     '<div class="empty">Sem despesas ainda.<br>Durante a viagem, lance aqui quem pagou o quê.</div>')}
 
@@ -1183,7 +1247,7 @@ function renderRacha(){
     ${PEOPLE.map(p=>{const v=(bal[p]||0)/100,w=Math.abs(bal[p]||0)/maxAbs*100;
       return `<div class="bal"><div class="n ${p===me?"":""}" style="${p===me?"color:var(--par)":""}">${esc(p)}</div>
         <div class="barmini"><i class="${v<0?"neg":""}" style="width:${w}%;${v<0?"right:0":"left:0"}"></i></div>
-        <div class="v ${v>=0?"pos":"neg"} money">${v>=0?"+":"−"}${fmt(Math.abs(v))}</div></div>`;}).join("")}
+        <div class="v ${v>=0?"pos":"neg"} money">${v>=0?"+":"−"}${fmtMO(Math.abs(v))}</div></div>`;}).join("")}
     <div class="note">Positivo = já pagou mais do que consumiu.</div>
   </div>
 
@@ -1214,7 +1278,7 @@ function renderRacha(){
 
   $("#p-racha").querySelectorAll("[data-quit]").forEach(b=>b.onclick=()=>{
     const t=trs[Number(b.dataset.quit)];if(!t)return;
-    saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).concat([{id:uid(),de:t.de,para:t.para,valor:t.v/100,moeda:"BRL",data:hoje}])});
+    saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).concat([{id:uid(),de:t.de,para:t.para,valor:t.v/100,moeda:MOEDA_VIAGEM(),data:hoje}])});
     toast("Transferência registrada");});
   $("#p-racha").querySelectorAll("[data-ddl]").forEach(b=>b.onclick=()=>
     saveDoc("racha",{despesas:(STATE.racha.despesas||[]).filter(x=>x.id!==b.dataset.ddl)}));
@@ -1254,7 +1318,7 @@ function renderAdmin(){
     <div class="adm-scroll">
       ${itens.map(it=>{const g=itemPeople(it);return `<div class="li" style="margin-bottom:6px">
         <div class="t"><div class="n">${esc(it.desc)}</div>
-          <div class="s">${esc(it.cat)} · ${g.length===PEOPLE.length?"todos":g.map(esc).join(", ")}</div></div>
+          <div class="s">${esc(it.cat)} · ${g.length===PEOPLE.length?"todos":g.map(esc).join(", ")}${naMeta(it)?"":" · fora da meta"}</div></div>
         <div class="v money">${fmtIn(it.valor,it.moeda)}</div>
         <button class="x" data-cite="${it.id}" aria-label="Editar">✎</button>
         <button class="x" data-citd="${it.id}" aria-label="Excluir">✕</button></div>`;}).join("")||'<div class="empty">Nenhum item.</div>'}
@@ -1307,10 +1371,14 @@ function renderAdmin(){
     {id:"cat",label:"Categoria",type:"select",options:cats,value:it?it.cat:"Hospedagem"},
     {id:"valor",label:"Valor total",type:"money",value:it?String(it.valor).replace(".",","):"",placeholder:"0,00"},
     {id:"moeda",label:"Moeda",type:"select",options:["EUR","BRL","USD"],value:it?it.moeda:"EUR"},
-    {id:"quem",label:"Dividir entre",type:"chips",value:it?itemPeople(it):PEOPLE.slice()}
+    {id:"quem",label:"Dividir entre",type:"chips",value:it?itemPeople(it):PEOPLE.slice()},
+    {id:"naMeta",label:"Entra na meta de poupança?",type:"select",
+     options:[{v:"sim",l:"Sim — precisa estar guardado"},{v:"nao",l:"Não — vai parcelado no cartão"}],
+     value:it?(naMeta(it)?"sim":"nao"):"sim"}
   ],v=>{
     if(!v.desc||v.valor<=0){toast("Preencha descrição e valor");return false;}
     const novo={id:it?it.id:uid(),cat:v.cat,desc:v.desc,valor:v.valor,moeda:v.moeda,
+      naMeta:v.naMeta!=="nao",
       quem:v.quem.length===PEOPLE.length?"todos":v.quem};
     saveDoc("custos",{itens:it?itens.map(x=>x.id===it.id?novo:x):itens.concat([novo])});
     toast("Orçamento atualizado");});
@@ -1356,6 +1424,7 @@ try{
 
 if(STATE.me&&PEOPLE.indexOf(STATE.me)>-1)enterApp();else showLogin();
 initFB();
+carregarFX();
 
 </script>
 </body>
