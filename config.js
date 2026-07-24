@@ -26,7 +26,7 @@ export const firebaseConfig = {
 /* 2) APP CHECK --------------------------------------------------
    Deixe "" enquanto nao configurar o reCAPTCHA v3.              */
 
-export const APPCHECK_KEY = "";
+export const APPCHECK_KEY = "6LeLRmMtAAAAAFrgFFvrTjAUR1ylk8zNoU3vq0y3";
 
 
 /* 3) SENHAS -----------------------------------------------------
