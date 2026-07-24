@@ -227,7 +227,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
  padding:15px 10px;font-size:15.5px;font-weight:700;cursor:pointer;font-family:inherit}
 .pbtn.on{background:var(--panel2);border-color:var(--par);color:var(--par)}
 .pininp{display:flex;justify-content:center;margin:0 0 14px}
-.pininp input{max-width:200px;height:56px;text-align:center;font-size:26px;letter-spacing:.42em;font-weight:800;padding-left:12px}
+.pininp input{max-width:250px;height:54px;text-align:center;font-size:19px;letter-spacing:.14em;font-weight:700}
 
 .toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));transform:translateX(-50%);
  background:var(--ok);color:#062018;font-weight:800;padding:11px 18px;border-radius:12px;font-size:13.5px;
@@ -249,9 +249,9 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 <div id="login" class="login hidden">
   <div class="kicker" style="text-align:center">Paris · Munique · Berlim · out 2027</div>
   <div class="disp">Trilha<br>2027</div>
-  <div class="ll">Escolha seu nome e digite seu PIN</div>
+  <div class="ll">Escolha seu nome e digite sua senha</div>
   <div id="pgrid" class="pgrid"></div>
-  <div class="pininp"><input id="pin" type="tel" inputmode="numeric" maxlength="4" placeholder="••••" aria-label="PIN"></div>
+  <div class="pininp"><input id="pin" type="password" autocomplete="current-password" placeholder="senha" aria-label="Senha"></div>
   <button id="enter" class="btn">Entrar</button>
   <div id="lerr" class="err"></div>
 </div>
@@ -299,16 +299,29 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
    Arquitetura: index.html único + Firestore + fallback local
    ========================================================= */
 
-/* ---- 1. CONFIG DO FIREBASE ------------------------------
-   COLE AQUI o firebaseConfig do SEU projeto (Firebase ->
-   Configurações do projeto -> Seus apps -> App da Web).
-   Coleções usadas: "viagem" e "viajantes".
-   USE_ANON_AUTH=true exige login anônimo, o que permite
-   fechar as regras do Firestore para "só usuários logados". */
-const firebaseConfig={apiKey:"AIzaSyAD162Ot34ceWnf4KJIxVVnAq3VGP0p88Y",authDomain:"bolao-reisdorj26.firebaseapp.com",projectId:"bolao-reisdorj26",storageBucket:"bolao-reisdorj26.firebasestorage.app",messagingSenderId:"403571032131",appId:"1:403571032131:web:3b56b50c8218792d40d4f6"};
+/* ==========================================================
+   INICIO DA CONFIGURACAO — SO ESTE BLOCO VOCE EDITA
+   ========================================================== */
+
+// 1) Firebase -> engrenagem -> Configuracoes do projeto -> Seus apps -> App da Web
+const firebaseConfig={apiKey:"COLE_AQUI",authDomain:"COLE_AQUI",projectId:"COLE_AQUI",storageBucket:"COLE_AQUI",messagingSenderId:"COLE_AQUI",appId:"COLE_AQUI"};
+
+// 2) App Check -> chave do site do reCAPTCHA v3. Deixe "" enquanto nao configurar.
+const APPCHECK_KEY="";
+
+// 3) Senhas: cole aqui o que o gerar-senhas.html produzir.
+//    Enquanto ficar vazio, valem as senhas de teste: Caio 1010, Be 2020,
+//    Ronaldo 3030, Shirlei 4040, admin 2027.
+const PIN_HASH={};
+const ADMIN_HASH="";
+
+/* ==========================================================
+   FIM DA CONFIGURACAO — daqui pra baixo nao precisa mexer
+   ========================================================== */
+
 const SVER="10.12.2";
-const USE_ANON_AUTH=true;   // ligue o provedor "Anônimo" em Authentication
-const NS={viagem:"viagem",pessoas:"viajantes"};   // nomes das coleções
+const USE_ANON_AUTH=true;
+const NS={viagem:"viagem",pessoas:"viajantes"};
 
 /* ---- 2. DADOS DA VIAGEM (edite aqui os PINs) ------------ */
 const DATA={
@@ -423,6 +436,24 @@ const DATA={
 };
 const PEOPLE=DATA.people, PINS=DATA.pins, ADMIN_PIN=DATA.adminPin, SEED=DATA.seed;
 
+/* verificação de senha: PBKDF2-SHA256 quando há hash, texto puro como último recurso */
+async function pbkdf2(pass,saltHex,iter){
+  const enc=new TextEncoder();
+  const salt=new Uint8Array((saltHex.match(/../g)||[]).map(h=>parseInt(h,16)));
+  const k=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveBits"]);
+  const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt:salt,iterations:iter,hash:"SHA-256"},k,256);
+  return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function conferir(rec,valor,fallback){
+  if(!rec)return fallback!=null&&fallback===valor;
+  if(!(window.crypto&&crypto.subtle))return false;
+  const p=String(rec).split("$");
+  if(p.length!==4||p[0]!=="pbkdf2")return false;
+  try{return (await pbkdf2(valor,p[2],Number(p[1])))===p[3];}catch(e){return false;}
+}
+const checarPessoa=(n,v)=>conferir(PIN_HASH[n],v,PINS[n]);
+const checarAdmin=v=>conferir(ADMIN_HASH,v,ADMIN_PIN);
+
 /* ---- 3. ESTADO ----------------------------------------- */
 let db=null, FB=null, MOCK=false;
 const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur"};
@@ -494,6 +525,10 @@ async function initFB(){
       if(USE_ANON_AUTH)U=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-auth.js`);
     }catch(e){e.code="SDK_LOAD_FAIL";throw e;}
     FB=F;const app=A.initializeApp(firebaseConfig);
+    if(APPCHECK_KEY){
+      const AC=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-app-check.js`);
+      AC.initializeAppCheck(app,{provider:new AC.ReCaptchaV3Provider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true});
+    }
     if(USE_ANON_AUTH){
       try{await U.signInAnonymously(U.getAuth(app));}
       catch(e){e.code=e.code||"AUTH_FAIL";throw e;}
@@ -573,10 +608,13 @@ function showLogin(){
     pick=b.dataset.n;$("#pgrid").querySelectorAll(".pbtn").forEach(x=>x.classList.toggle("on",x===b));});
   $("#pin").value="";$("#lerr").textContent="";
 }
-$("#enter").onclick=()=>{
-  const pin=$("#pin").value.trim();
+$("#enter").onclick=async()=>{
+  const pin=$("#pin").value;
   if(!pick){$("#lerr").textContent="Escolha seu nome.";return;}
-  if(PINS[pick]!==pin){$("#lerr").textContent="PIN incorreto.";return;}
+  const b=$("#enter");b.disabled=true;b.textContent="Conferindo…";
+  const ok=await checarPessoa(pick,pin);
+  b.disabled=false;b.textContent="Entrar";
+  if(!ok){$("#lerr").textContent="Senha incorreta.";$("#pin").value="";return;}
   STATE.me=pick;localStorage.setItem(LS.me,pick);enterApp();
 };
 $("#pin").addEventListener("keydown",e=>{if(e.key==="Enter")$("#enter").click();});
@@ -1187,10 +1225,14 @@ function renderAdmin(){
   const el=$("#p-admin");if(!el)return;
   if(!isAdmin()){
     el.innerHTML=`<div class="card"><div class="note" style="margin:0 0 10px">Área do admin: editar orçamento, roteiro, datas e câmbio.</div>
-      <input id="apin" type="tel" inputmode="numeric" maxlength="4" placeholder="PIN do admin" style="text-align:center;letter-spacing:.3em;font-weight:800">
+      <input id="apin" type="password" autocomplete="current-password" placeholder="senha do admin" style="text-align:center;font-weight:700">
       <button class="btn" id="aenter" style="margin-top:10px">Entrar</button><div id="aerr" class="err"></div></div>`;
-    const go=()=>{if($("#apin").value.trim()===ADMIN_PIN){localStorage.setItem(LS.admin,"1");renderAll();show("admin");toast("Modo admin ligado");}
-      else $("#aerr").textContent="PIN incorreto.";};
+    const go=async()=>{
+      const b=$("#aenter");b.disabled=true;b.textContent="Conferindo…";
+      const ok=await checarAdmin($("#apin").value);
+      b.disabled=false;b.textContent="Entrar";
+      if(ok){localStorage.setItem(LS.admin,"1");renderAll();show("admin");toast("Modo admin ligado");}
+      else{$("#aerr").textContent="Senha incorreta.";$("#apin").value="";}};
     $("#aenter").onclick=go;
     $("#apin").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
     return;
