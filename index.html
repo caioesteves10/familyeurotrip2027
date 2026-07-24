@@ -311,6 +311,7 @@ let APPCHECK_KEY="";
 let PIN_HASH={};
 let ADMIN_HASH="";
 let CFG_OK=false;
+let APPCHECK_ST="desligado";
 
 const SVER="10.12.2";
 const USE_ANON_AUTH=true;
@@ -519,9 +520,16 @@ async function initFB(){
     }catch(e){e.code="SDK_LOAD_FAIL";throw e;}
     FB=F;const app=A.initializeApp(firebaseConfig);
     if(APPCHECK_KEY){
-      const AC=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-app-check.js`);
-      AC.initializeAppCheck(app,{provider:new AC.ReCaptchaV3Provider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true});
-    }
+      try{
+        const AC=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-app-check.js`);
+        const ac=AC.initializeAppCheck(app,{provider:new AC.ReCaptchaV3Provider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true});
+        const tk=await AC.getToken(ac,false);
+        APPCHECK_ST=(tk&&tk.token)?"OK — token emitido":"sem token (motivo desconhecido)";
+      }catch(err){
+        APPCHECK_ST="FALHOU — "+String((err&&err.message)||err).slice(0,120);
+        console.warn("App Check:",err);
+      }
+    }else{APPCHECK_ST="desligado (APPCHECK_KEY vazio no config.js)";}
     if(USE_ANON_AUTH){
       try{await U.signInAnonymously(U.getAuth(app));}
       catch(e){e.code=e.code||"AUTH_FAIL";throw e;}
@@ -1282,7 +1290,9 @@ function renderAdmin(){
 
   <div class="${admView==="tools"?"":"hidden"}">
     <div class="card">
-      <div class="note" style="margin:0 0 10px">Modo: <b>${MOCK?"local (sem banco)":"conectado ao Firestore"}</b>.</div>
+      <div class="note" style="margin:0 0 10px">Banco: <b>${MOCK?"local (sem conexão)":"conectado ao Firestore"}</b><br>
+        App Check: <b style="color:${/^OK/.test(APPCHECK_ST)?"var(--ok)":(/^FALHOU|sem token/.test(APPCHECK_ST)?"var(--danger)":"var(--muted)")}">${esc(APPCHECK_ST)}</b><br>
+        Chave no config.js: <b>${APPCHECK_KEY?esc(APPCHECK_KEY.slice(0,8))+"…":"vazia"}</b></div>
       <button class="btn gh" id="aout">Sair do modo admin</button>
       <button class="btn dgr" id="rzerar" style="margin-top:9px">Apagar todas as despesas do racha</button>
       <button class="btn dgr" id="rroteiro" style="margin-top:9px">Restaurar roteiro sugerido</button>
@@ -1337,7 +1347,7 @@ function renderAdmin(){
 
 /* ---- 17. BOOT ------------------------------------------ */
 try{
-  const C=await import("./config.js?v=1");
+  const C=await import("./config.js?v=2");
   if(C.firebaseConfig&&C.firebaseConfig.apiKey){firebaseConfig=C.firebaseConfig;CFG_OK=true;}
   if(C.APPCHECK_KEY)APPCHECK_KEY=C.APPCHECK_KEY;
   if(C.PIN_HASH)PIN_HASH=C.PIN_HASH;
