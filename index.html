@@ -300,31 +300,17 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
    ========================================================= */
 
 /* ==========================================================
-   INICIO DA CONFIGURACAO — SO ESTE BLOCO VOCE EDITA
+   NAO EDITE ESTE ARQUIVO.
+   Suas configuracoes (Firebase, senhas, App Check) ficam no
+   arquivo config.js, que fica ao lado deste no repositorio.
+   Assim voce pode trocar o index.html por uma versao nova
+   sem perder nada.
    ========================================================== */
-
-// 1) Firebase -> engrenagem -> Configuracoes do projeto -> Seus apps -> App da Web
-const firebaseConfig = {
-  apiKey: "AIzaSyC0RJcXiE7pSZozHMHvA88-7PrJKg2qpmM",
-  authDomain: "familyeurotrip2027.firebaseapp.com",
-  projectId: "familyeurotrip2027",
-  storageBucket: "familyeurotrip2027.firebasestorage.app",
-  messagingSenderId: "969485059887",
-  appId: "1:969485059887:web:ffcf19de40fd29eba7c3da"
-};
-
-// 2) App Check -> chave do site do reCAPTCHA v3. Deixe "" enquanto nao configurar.
-const APPCHECK_KEY="";
-
-// 3) Senhas: cole aqui o que o gerar-senhas.html produzir.
-//    Enquanto ficar vazio, valem as senhas de teste: Caio 1010, Be 2020,
-//    Ronaldo 3030, Shirlei 4040, admin 2027.
-const PIN_HASH={};
-const ADMIN_HASH="";
-
-/* ==========================================================
-   FIM DA CONFIGURACAO — daqui pra baixo nao precisa mexer
-   ========================================================== */
+let firebaseConfig={apiKey:"",authDomain:"",projectId:""};
+let APPCHECK_KEY="";
+let PIN_HASH={};
+let ADMIN_HASH="";
+let CFG_OK=false;
 
 const SVER="10.12.2";
 const USE_ANON_AUTH=true;
@@ -548,8 +534,10 @@ async function initFB(){
     const ob=$("#offbar");
     if(ob){ob.classList.remove("hidden");
       const cod=String((e&&e.code)||(e&&e.name)||"?");
-      const dica=/auth\/(admin-restricted|operation-not-allowed|configuration)/.test(cod)?"Ligue o login anônimo em Authentication → Método de login.":
-        (/permission|insufficient/i.test(cod+String(e&&e.message))?"Confira as regras do Firestore.":"");
+      const dica=!CFG_OK?"O arquivo config.js não foi encontrado ou está sem a apiKey. Confira se ele está no repositório, ao lado do index.html.":
+        (/api-key-not-valid/i.test(cod)?"A apiKey do config.js está errada. Copie de novo em Firebase → ⚙ → Configurações do projeto → Seus apps.":
+        (/auth\/(admin-restricted|operation-not-allowed|configuration)/.test(cod)?"Ligue o login anônimo em Authentication → Método de login.":
+        (/permission|insufficient/i.test(cod+String(e&&e.message))?"Confira as regras do Firestore.":"")));
       ob.innerHTML="⚠️ <b>Sem conexão com o banco.</b> O app está salvando só neste aparelho.<br>"+
         (dica?"<b>"+esc(dica)+"</b><br>":"")+
         "<span style='font-size:11px'>Erro: "+esc(cod)+" — "+esc(String((e&&e.message)||e).slice(0,140))+"</span>";}
@@ -1348,6 +1336,14 @@ function renderAdmin(){
 }
 
 /* ---- 17. BOOT ------------------------------------------ */
+try{
+  const C=await import("./config.js?v=1");
+  if(C.firebaseConfig&&C.firebaseConfig.apiKey){firebaseConfig=C.firebaseConfig;CFG_OK=true;}
+  if(C.APPCHECK_KEY)APPCHECK_KEY=C.APPCHECK_KEY;
+  if(C.PIN_HASH)PIN_HASH=C.PIN_HASH;
+  if(C.ADMIN_HASH)ADMIN_HASH=C.ADMIN_HASH;
+}catch(e){console.warn("config.js nao encontrado ou com erro:",e);}
+
 if(STATE.me&&PEOPLE.indexOf(STATE.me)>-1)enterApp();else showLogin();
 initFB();
 
