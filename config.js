@@ -14,12 +14,12 @@
    A apiKey sempre comeca com AIza.                              */
 
 export const firebaseConfig = {
-  apiKey: "COLE_AQUI",
-  authDomain: "COLE_AQUI",
-  projectId: "COLE_AQUI",
-  storageBucket: "COLE_AQUI",
-  messagingSenderId: "COLE_AQUI",
-  appId: "COLE_AQUI"
+  apiKey: "AIzaSyC0RJcXiE7pSZozHMHvA88-7PrJKg2qpmM",
+  authDomain: "familyeurotrip2027.firebaseapp.com",
+  projectId: "familyeurotrip2027",
+  storageBucket: "familyeurotrip2027.firebasestorage.app",
+  messagingSenderId: "969485059887",
+  appId: "1:969485059887:web:ffcf19de40fd29eba7c3da"
 };
 
 
