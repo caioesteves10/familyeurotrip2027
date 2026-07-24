@@ -1,0 +1,14 @@
+{
+  "name": "EuroTrip 2027",
+  "short_name": "EuroTrip",
+  "description": "Paris, Munique e Berlim — outubro de 2027",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E131F",
+  "theme_color": "#0E131F",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
