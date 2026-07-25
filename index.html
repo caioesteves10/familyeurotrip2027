@@ -289,6 +289,49 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 @keyframes fall{to{top:105%;opacity:.2}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 :focus-visible{outline:2px solid var(--mun);outline-offset:2px}
+/* ============ DESKTOP (>= 900px) ============ */
+@media (min-width:900px){
+  body{max-width:none;padding:0 0 0 250px}
+  body::before{height:0;background:none}
+  /* barra inferior vira sidebar fixa à esquerda */
+  .nav{position:fixed;top:0;left:0;bottom:0;right:auto;width:250px;height:100vh;
+    flex-direction:column;align-items:stretch;justify-content:flex-start;
+    border-top:none;border-right:1px solid var(--line);padding:22px 14px;gap:5px;
+    backdrop-filter:none;background:var(--panel);max-width:none;margin:0;overflow-y:auto}
+  .nav::before{content:"EuroTrip";display:block;font-family:'Bricolage Grotesque',Inter,sans-serif;
+    font-weight:800;font-size:23px;letter-spacing:-.02em;color:var(--navy);padding:4px 12px 18px}
+  .nav div{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:13px;padding:12px 14px;
+    font-size:14.5px;letter-spacing:0;border-radius:11px;white-space:nowrap}
+  .nav div .ic,.nav div .ic svg{width:21px;height:21px}
+  .nav div.on{background:var(--panel2)}
+  .nav div.on .ic svg{color:var(--orange)}
+  .nav .navdot{display:none}
+  /* conteúdo centralizado numa coluna larga */
+  .wrap{max-width:960px;margin:0 auto;padding:28px 40px 60px;width:100%}
+  .topbar{margin-bottom:16px}
+  .topbar .kicker{font-size:12px}
+  .strip{padding:20px 24px}
+  .strip h1{font-size:34px}
+  .card{padding:18px}
+  /* topo do cofre: hero + este mês lado a lado */
+  .cofre-top{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;margin-bottom:8px}
+  .cofre-top>.hero{margin-bottom:0}
+  .cofre-top .cofre-month{display:flex;flex-direction:column}
+  .cofre-top .cofre-month .card{margin-bottom:0;flex:1}
+  .cofre-top .sect{margin-top:0}
+  .modal{align-items:center}
+  .modal .box{max-width:460px;border-radius:20px}
+  .seg{max-width:100%}
+  .tb{font-size:14.5px}
+  .li{padding:13px 15px}
+  /* grades de 2 colunas para blocos densos (custos/racha) */
+  .dtwo{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  .dcol{display:flex;flex-direction:column}
+}
+@media (min-width:1280px){
+  .wrap{max-width:1120px}
+}
+
 </style>
 </head>
 <body>
@@ -1020,6 +1063,7 @@ function renderCofre(){
   const deps=(d.depositos||[]).slice().sort((a,b)=>String(b.mes||"").localeCompare(String(a.mes||""))||String(b.id).localeCompare(String(a.id)));
 
   $("#p-cofre").innerHTML=`
+  <div class="cofre-top">
   <div class="hero ${done?"done":""}">
     <div class="row">
       <div class="grow">
@@ -1037,7 +1081,7 @@ function renderCofre(){
     </div>
   </div>
 
-  <div class="sect">${M.antes?"Plano mensal":"Este mês"}<span class="r">${M.antes?"começa em "+monthLabel(iniPoup()):monthLabel(M.mk)}</span></div>
+  <div class="cofre-month"><div class="sect" style="margin-top:0">${M.antes?"Plano mensal":"Este mês"}<span class="r">${M.antes?"começa em "+monthLabel(iniPoup()):monthLabel(M.mk)}</span></div>
   <div class="card ${M.ok||M.acabou?"okline":""}">
     ${M.acabou?
     `<div class="row"><div class="grow"><div class="lbl">Meta batida</div>
@@ -1062,6 +1106,8 @@ function renderCofre(){
     </div>
   </div>
 
+  </div><!-- /cofre-month -->
+  </div><!-- /cofre-top -->
   ${keys.length?`<div class="sect">Últimos meses</div>${mesesStrip(mm)}`:""}
 
   <div class="sect">Meus depósitos<span class="r">${deps.length||"nenhum"}</span></div>
@@ -1152,12 +1198,14 @@ function renderCustos(){
 
   <div class="seg" id="cseg">
     <div data-v="grupo" class="${custosView==="grupo"?"on":""}">Por pessoa</div>
-    <div data-v="itens" class="${custosView==="itens"?"on":""}">Itens</div>
-    <div data-v="meus" class="${custosView==="meus"?"on":""}">Meus gastos</div>
+    <div data-v="itens" class="${custosView==="itens"?"on":""}">Custos Gerais</div>
+    <div data-v="meus" class="${custosView==="meus"?"on":""}">Outros Gastos</div>
     <div data-v="real" class="${custosView==="real"?"on":""}">Realizados</div>
   </div>
 
   <div class="${custosView==="grupo"?"":"hidden"}">
+    <div class="dtwo">
+    <div class="dcol">
     <div class="card">
       <table class="tb"><thead><tr><th>Pessoa</th><th>Meta</th><th>Passagem</th><th>Total</th></tr></thead><tbody>
       ${PEOPLE.map(p=>`<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(orcamentoDe(p))}</td>
@@ -1166,13 +1214,17 @@ function renderCustos(){
         <td class="money">${fmt(tot-totalMeta())}</td><td class="money">${fmt(tot+totPess)}</td></tr></tfoot></table>
       <div class="note"><b>Meta</b> é o que precisa estar guardado antes de embarcar. <b>Passagem</b> fica de fora porque vai parcelada. <b>Total</b> é o custo real da viagem para cada um.</div>
     </div>
-    <div class="sect">Por categoria<span class="r">sua parte</span></div>
+    </div>
+    <div class="dcol">
+    <div class="sect" style="margin-top:0">Por categoria<span class="r">sua parte</span></div>
     <div class="card">
       <table class="tb"><thead><tr><th>Categoria</th><th>Total grupo</th><th>Você</th></tr></thead><tbody>
       ${Object.keys(cats).sort((x,y)=>cats[y].tot-cats[x].tot).map(c=>
         `<tr><td>${esc(c)}</td><td class="money">${fmt(cats[c].tot)}</td><td class="money">${fmt(cats[c].meu)}</td></tr>`).join("")}
       </tbody></table>
       <div class="note">Inclui os itens do grupo (sua parte no rateio) e os seus gastos individuais e compras. Cada um vê a própria coluna.</div>
+    </div>
+    </div>
     </div>
   </div>
 
