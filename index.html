@@ -1239,9 +1239,18 @@ function wireChart(){
     if(cur)cur.style.opacity="0";if(dots)dots.innerHTML="";tip.style.opacity="0";}
   svg.addEventListener("mousemove",e=>show(e.clientX));
   svg.addEventListener("mouseleave",hide);
-  svg.addEventListener("touchstart",e=>{if(e.touches[0])show(e.touches[0].clientX);},{passive:true});
-  svg.addEventListener("touchmove",e=>{if(e.touches[0])show(e.touches[0].clientX);},{passive:true});
-  svg.addEventListener("touchend",hide);
+  let scrubX=0;
+  svg.addEventListener("touchstart",e=>{if(e.touches[0]){scrubX=e.touches[0].clientX;show(e.touches[0].clientX);}},{passive:true});
+  svg.addEventListener("touchmove",e=>{
+    if(!e.touches[0])return;
+    const dx=Math.abs(e.touches[0].clientX-scrubX);
+    // se o dedo se move na horizontal sobre o gráfico, é para navegar o gráfico:
+    // impede a rolagem/troca de aba da página
+    if(dx>4&&e.cancelable)e.preventDefault();
+    e.stopPropagation();
+    show(e.touches[0].clientX);
+  },{passive:false});
+  svg.addEventListener("touchend",e=>{e.stopPropagation();hide();});
   // redesenha se a largura mudar (girar tela / redimensionar janela)
   if(window._glResize)window.removeEventListener("resize",window._glResize);
   window._glResize=()=>{if(document.getElementById("glchart")===svg)draw();};
@@ -1415,7 +1424,7 @@ function comparativo(p){
 
 /* ---- 11. CUSTOS (orçamento) ---------------------------- */
 let custosView=localStorage.getItem("tr27_csub")||"grupo";
-let outrosCat="";  // filtro de categoria na aba Outros Gastos ("" = todas)
+let outrosCats=[];  // filtro de categorias na aba Outros Gastos (vazio = todas)
 function renderCustos(){
   const me=STATE.me;
   const itens=custoItens();
@@ -1493,17 +1502,17 @@ function renderCustos(){
     ${(()=>{
       const catsPess=[...new Set(pess.map(x=>x.cat||(x.de==="Compras"?"Compras":"Outros")))].sort();
       if(!catsPess.length)return "";
-      if(outrosCat&&!catsPess.includes(outrosCat))outrosCat="";
-      return `<div class="catfilter"><span class="catchip ${outrosCat===""?"on":""}" data-catf="">Todas</span>`+
-        catsPess.map(c=>`<span class="catchip ${outrosCat===c?"on":""}" data-catf="${esc(c)}">${esc(c)}</span>`).join("")+`</div>`;
+      outrosCats=outrosCats.filter(c=>catsPess.includes(c)); // remove categorias que sumiram
+      return `<div class="catfilter"><span class="catchip ${outrosCats.length===0?"on":""}" data-catf="__todas">Todas</span>`+
+        catsPess.map(c=>`<span class="catchip ${outrosCats.includes(c)?"on":""}" data-catf="${esc(c)}">${esc(c)}</span>`).join("")+`</div>`;
     })()}
     ${(()=>{
-      const lista=outrosCat?pess.filter(x=>(x.cat||(x.de==="Compras"?"Compras":"Outros"))===outrosCat):pess;
+      const lista=outrosCats.length?pess.filter(x=>outrosCats.includes(x.cat||(x.de==="Compras"?"Compras":"Outros"))):pess;
       return lista.length?lista.map(x=>`<div class="li"><div class="t"><div class="n">${esc(x.desc)}</div>
       <div class="s">${x.de==="Compras"?"lista de compras":"gasto individual"}${x.cat?" · "+esc(x.cat):""} · ${fmt(toBRL(x.valor,x.moeda))}</div></div>
       <div class="v money">${fmtIn(x.valor,x.moeda)}</div>
       ${x.de==="Compras"?'<span class="pill" style="flex:0 0 auto">em Compras</span>':`<button class="x" data-pedit="${x.id}" aria-label="Editar">✎</button><button class="x" data-pdel="${x.id}" aria-label="Excluir">✕</button>`}</div>`).join(""):
-      (outrosCat?`<div class="empty">Nenhum gasto em "${esc(outrosCat)}".</div>`:'<div class="empty">Nenhum gasto individual.<br>Compras e extras pessoais entram aqui.</div>');
+      (outrosCats.length?`<div class="empty">Nenhum gasto em ${outrosCats.map(c=>'"'+esc(c)+'"').join(", ")}.</div>`:'<div class="empty">Nenhum gasto individual.<br>Compras e extras pessoais entram aqui.</div>');
     })()}
   </div>
 
@@ -1535,7 +1544,13 @@ function renderCustos(){
     const seg=$("#cseg");if(seg)seg.scrollLeft=sl; // mantém a rolagem onde estava
     requestAnimationFrame(animarNumeros);});
   $("#p-custos").querySelectorAll("[data-catf]").forEach(el=>el.onclick=()=>{
-    outrosCat=el.dataset.catf;renderCustos();});
+    const c=el.dataset.catf;
+    if(c==="__todas")outrosCats=[];
+    else if(outrosCats.includes(c))outrosCats=outrosCats.filter(x=>x!==c);
+    else outrosCats=outrosCats.concat([c]);
+    const sl=$("#cseg")?$("#cseg").scrollLeft:0;
+    renderCustos();
+    const seg=$("#cseg");if(seg)seg.scrollLeft=sl;});
   const ga=$("#goadm");if(ga)ga.onclick=()=>{show("admin");admView="custos";renderAdmin();};
 
   const gastoModal=(x)=>openModal(x?"Editar gasto":"Gasto individual",[
@@ -1975,7 +1990,7 @@ function renderRacha(){
       <div class="who">${esc(t.de)}<span class="ar">→</span>${esc(t.para)}</div>
       <div class="v money">${fmtMO(t.v/100)}</div>
       <button class="btn sm gh" data-quit="${i}">quitar</button></div>`).join("")+
-    `<div class="note">Tudo em ${MOEDA_VIAGEM()}, para acertarem na moeda corrente no fim da viagem. Dívidas já foram cruzadas: cada um paga o mínimo de vezes possível. "Quitar" registra a transferência como feita.</div>`:
+    `<div class="note">Tudo em ${MOEDA_VIAGEM()}, para acertarem na moeda corrente no fim da viagem. Dívidas já foram cruzadas: cada um paga o mínimo de vezes possível. Em "quitar" dá para registrar o valor total ou um pagamento parcial — o saldo restante se recalcula sozinho.</div>`:
     (totalG?'<div class="okbox">Tudo acertado. Ninguém deve nada a ninguém.</div>':
     '<div class="empty">Sem despesas ainda.<br>Durante a viagem, lance aqui quem pagou o quê.</div>')}
   </div>
@@ -2028,8 +2043,18 @@ function renderRacha(){
 
   $("#p-racha").querySelectorAll("[data-quit]").forEach(b=>b.onclick=()=>{
     const t=trs[Number(b.dataset.quit)];if(!t)return;
-    vibrar(14);saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).concat([{id:uid(),de:t.de,para:t.para,valor:t.v/100,moeda:MOEDA_VIAGEM(),data:hoje}])});
-    toast("Transferência registrada");});
+    const total=t.v/100;
+    openModal(`Quitar: ${t.de} → ${t.para}`,[
+      {id:"valor",label:`Quanto ${t.de} vai pagar agora`,type:"money",value:String(total.toFixed(2)).replace(".",","),placeholder:"0,00"},
+      {id:"data",label:"Data",type:"date",value:hoje}
+    ],v=>{
+      const val=v.valor;
+      if(!(val>0)){toast("Informe um valor");return false;}
+      if(val>total+0.005){toast(`Máximo desta dívida: ${fmtMO(total)}`);return false;}
+      vibrar(14);
+      saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).concat([{id:uid(),de:t.de,para:t.para,valor:val,moeda:MOEDA_VIAGEM(),data:v.data||hoje}])});
+      toast(val>=total-0.005?"Dívida quitada ✓":`Pagamento parcial de ${fmtMO(val)} registrado`);
+    },"Registrar pagamento");});
   $("#p-racha").querySelectorAll("[data-ddl]").forEach(b=>b.onclick=()=>
     saveDoc("racha",{despesas:(STATE.racha.despesas||[]).filter(x=>x.id!==b.dataset.ddl)}));
   $("#p-racha").querySelectorAll("[data-dedt]").forEach(b=>b.onclick=()=>{
@@ -2270,7 +2295,7 @@ setInterval(()=>{const k=monthKey(new Date());if(k!==ULT_MES){ULT_MES=k;renderAl
     }
     // arrasto lateral: o painel segue o dedo (com resistência nas bordas)
     if(hor){
-      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table, input, textarea, select");
+      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table, input, textarea, select, .chartwrap");
       if(!alvo){
         const o=ordem(),i=o.indexOf(curTab);
         const borda=(dx>0&&i<=0)||(dx<0&&i>=o.length-1);
@@ -2290,7 +2315,7 @@ setInterval(()=>{const k=monthKey(new Date());if(k!==ULT_MES){ULT_MES=k;renderAl
     }else{bar.classList.remove("ready");bar.style.transform="";bar.style.opacity="0";}
     // swipe horizontal concluído?
     if(hor){
-      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table, input, textarea, select");
+      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table, input, textarea, select, .chartwrap");
       const disparou=Math.abs(dx)>70&&dt<700;
       if(!alvo&&disparou)irLado(dx<0?1:-1);
       else limpaDrag(); // não passou do limite: volta o painel pro lugar
