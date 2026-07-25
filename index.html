@@ -75,6 +75,9 @@ a{color:var(--mun)}
 .strip h1{font-size:27px;margin:5px 0 3px}
 .strip .when{color:rgba(255,255,255,.72);font-size:12.5px;font-weight:600}
 .strip .cd{position:absolute;right:14px;top:12px;text-align:right}
+.wkchip{display:none}
+.wkchip.on{display:inline-block;margin-top:5px;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+ background:var(--orange);color:#fff;border-radius:99px;padding:3px 8px}
 .strip .cd .n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--par)}
 .strip .cd .u{font-size:9.5px;letter-spacing:.16em;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
 .perf{height:1px;margin:11px -15px 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px)}
@@ -121,8 +124,10 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
  padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;user-select:none}
 .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
 .chip.solo.on{border-color:var(--par)}
-.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:12px}
-.seg div{flex:1;text-align:center;padding:9px 6px;font-size:13.5px;font-weight:700;color:var(--muted);border-radius:9px;cursor:pointer}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:12px;
+ overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg div{flex:1 0 auto;white-space:nowrap;text-align:center;padding:9px 14px;font-size:13.5px;font-weight:700;color:var(--muted);border-radius:9px;cursor:pointer}
 .seg div.on{background:var(--panel);color:var(--navy);box-shadow:var(--shadow)}
 
 /* ---------- barra inferior ---------- */
@@ -137,7 +142,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .nav div.on{color:var(--navy)}
 .nav div.on .ic{filter:none}
 .navdot{width:16px;height:2px;border-radius:2px;background:transparent;margin-top:1px}
-.nav div.on .navdot{background:var(--orange)}
+.nav div.on .navdot{background:var(--orange);width:20px}
 
 .panel-v{display:none}
 .panel-v.on{display:block}
@@ -272,6 +277,16 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
  width:100%;max-width:520px;padding:16px 16px calc(20px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto}
 .modal .box h3{font-family:'Bricolage Grotesque',Inter,sans-serif;font-size:19px;margin-bottom:12px}
 .adm-scroll{max-height:46vh;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:10px}
+.btn,.chip,.seg div,.pbtn,.iconbtn,.nav div,.tick,.x{transition:transform .08s ease, background .15s ease, border-color .15s ease, color .15s ease}
+.btn:active,.pbtn:active{transform:scale(.975)}
+.iconbtn:active,.tick:active{transform:scale(.9)}
+.li{transition:transform .1s ease}
+.card,.li,.tr,.hero{animation:rise .32s cubic-bezier(.2,.7,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.toast{animation:none}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:95;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall 1.9s cubic-bezier(.3,.6,.5,1) forwards}
+@keyframes fall{to{top:105%;opacity:.2}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 :focus-visible{outline:2px solid var(--mun);outline-offset:2px}
 </style>
@@ -297,11 +312,11 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
       <span class="kicker" id="tagline">Viagem em família</span>
       <span class="me-chip"><span id="mename">—</span><button id="logout">trocar</button></span>
       <button class="iconbtn" id="themebtn" title="Alternar tema" aria-label="Alternar tema"><svg id="themeic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></svg></button>
-    <button class="iconbtn" id="adminkey" title="Área do admin" aria-label="Área do admin"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg></button>
+    <button class="iconbtn" id="adminkey" title="Área do admin" aria-label="Área do admin"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/></svg></button>
     </div>
 
     <div class="strip">
-      <div class="cd"><div class="n" id="cdn">—</div><div class="u" id="cdu">dias</div></div>
+      <div class="cd"><div class="n" id="cdn">—</div><div class="u" id="cdu">dias</div><span id="weekchip" class="wkchip"></span></div>
       <div class="route" id="route">—</div>
       <h1 class="disp" id="tripname">EuroTrip 2027</h1>
       <div class="when" id="tripwhen">—</div>
@@ -725,7 +740,10 @@ $("#pin").addEventListener("keydown",e=>{if(e.key==="Enter")$("#enter").click();
 $("#logout").onclick=()=>{localStorage.removeItem(LS.me);STATE.me=null;showLogin();};
 function enterApp(){
   $("#login").classList.add("hidden");$("#app").classList.remove("hidden");$("#nav").classList.remove("hidden");
+  if(emViagem()&&!sessionStorage.getItem("tr27_via")){curTab="roteiro";try{sessionStorage.setItem("tr27_via","1");}catch(e){}}
   $("#mename").textContent=STATE.me;
+  const h=new Date().getHours(),sd=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const tl=$("#tagline");if(tl&&STATE.me)tl.textContent=sd+", "+STATE.me;
   if(!STATE.cur){STATE.cur=moedaDe(STATE.me);localStorage.setItem(LS.cur,STATE.cur);}
   renderAll();
 }
@@ -738,15 +756,18 @@ const ICON={
   compras:'<path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   check:'<path d="M9 4h6a1 1 0 0 1 1 1a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2a1 1 0 0 1 1-1Z"/><path d="M8 5H5v16h14V5h-3"/><path d="m9 13 2 2 4-4"/>',
   racha:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M14.5 9.2c-.6-.9-4.5-1.4-4.5 1s5 1.2 5 3.4-3.9 2-4.8.9"/>',
-  admin:'<circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>'
+  admin:'<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/>'
 };
 const svgIcon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||""}</svg>`;
-const TABS=[["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["compras","Compras"],["check","Checklist"],["racha","Racha"]];
+const TABS_PRE=[["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["compras","Compras"],["check","Checklist"],["racha","Racha"]];
+const TABS_VIA=[["roteiro","Roteiro"],["racha","Racha"],["compras","Compras"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
+function emViagem(){const c=STATE.config;return daysTo(c.inicio)<=0&&daysTo(c.fim)>=0;}
+const TABS=()=>emViagem()?TABS_VIA:TABS_PRE;
 let curTab=localStorage.getItem(LS.tab)||"cofre";
 function buildNav(){
-  let t=TABS.slice();
-  if(isAdmin())t.push(["admin","Admin","⚙️"]);
-  if(!t.some(x=>x[0]===curTab))curTab="cofre";
+  let t=TABS().slice();
+  if(isAdmin())t.push(["admin","Admin"]);
+  if(!t.some(x=>x[0]===curTab))curTab=t[0][0];
   $("#nav").innerHTML=t.map(x=>`<div data-t="${x[0]}" class="${x[0]===curTab?"on":""}" role="button" tabindex="0">
     <span class="ic">${svgIcon(x[0])}</span><span>${x[1]}</span><span class="navdot"></span></div>`).join("");
   $("#nav").querySelectorAll("div[data-t]").forEach(el=>{
@@ -816,7 +837,8 @@ function renderAll(){
 }
 function renderHeader(){
   const c=STATE.config,cs=c.cidades||[];
-  $("#tagline").textContent=c.tagline||"Viagem Esteves & Bastos";
+  /* legenda do topo agora é saudação; mantém no renderHeader só se vazio */
+  if(!STATE.me)$("#tagline").textContent=c.tagline||"Viagem Esteves & Bastos";
   $("#tripname").textContent=c.nome||"EuroTrip 2027";
   $("#route").innerHTML=cs.map(x=>`<span>${esc(x.n)}</span>`).join('<span class="ar">→</span>')||"—";
   const d1=ymd(c.inicio),d2=ymd(c.fim),dias=Math.round((d2-d1)/86400000)+1;
@@ -825,18 +847,52 @@ function renderHeader(){
   if(dt>0){$("#cdn").textContent=dt;$("#cdu").textContent=dt===1?"dia":"dias";}
   else if(daysTo(c.fim)>=0){$("#cdn").textContent="✈";$("#cdu").textContent="em viagem";}
   else{$("#cdn").textContent="✓";$("#cdu").textContent="voltamos";}
+  const wk=$("#weekchip");
+  if(wk){
+    if(dt>0&&dt<=60){wk.textContent="reta final";wk.className="wkchip on";}
+    else if(dt<=0&&daysTo(c.fim)>=0){wk.textContent="aproveitem! 🍂";wk.className="wkchip on";}
+    else wk.className="wkchip";
+  }
   const fx=c.fx||{};
   const viva=!!FXLIVE;
   const hora=viva?new Date(FXLIVE.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
   $("#fxline").innerHTML=
-    `<span style="color:var(--dim)">€1 = ${fmtIn(rate("EUR"),"BRL")} · €1 = ${fmtIn(rate("EUR")/rate("USD"),"USD")}`+
-    (viva?` <span style="color:var(--ok)">• ${esc(FXLIVE.src)} ${esc(hora)}</span>`:` <span style="color:var(--warn)">• taxa fixa</span>`)+`</span>`+
+    `<span id="fxcalc" style="color:var(--dim);cursor:pointer">€1 = ${fmtIn(rate("EUR"),"BRL")} · €1 = ${fmtIn(rate("EUR")/rate("USD"),"USD")}`+
+    (viva?` <span style="color:var(--ok)">• ${esc(FXLIVE.src)} ${esc(hora)}</span>`:` <span style="color:var(--warn)">• taxa fixa</span>`)+` ⇄</span>`+
     `<span style="margin-left:auto;display:flex;gap:4px">`+
       ["BRL","USD","EUR"].map(m=>`<span class="pill ${STATE.cur===m?"ok":""}" data-cur="${m}" style="cursor:pointer">${m}</span>`).join("")+
     `</span>`;
   $("#fxline").querySelectorAll("[data-cur]").forEach(el=>el.onclick=()=>{
     STATE.cur=el.dataset.cur;localStorage.setItem(LS.cur,STATE.cur);renderAll();});
+  const fc=$("#fxcalc");if(fc)fc.onclick=abrirCambio;
   $("#foot").textContent=c.nota||"";
+}
+
+/* ---- calculadora de câmbio ----------------------------- */
+function abrirCambio(){
+  const moedas=["EUR","BRL","USD"];
+  let de="EUR", val="100";
+  function linhas(){
+    const emBRL=toBRL(parseMoney(val)||0,de);
+    return moedas.filter(m=>m!==de).map(m=>`<div class="li" style="margin-bottom:7px">
+      <div class="t"><div class="n money">${fmtIn(conv(emBRL,m),m)}</div>
+      <div class="s">${m}</div></div></div>`).join("");
+  }
+  $("#modal").innerHTML=`<div class="modal"><div class="box"><h3>Conversor de moeda</h3>
+    <div class="f2" style="margin-bottom:10px">
+      <div><label class="f">Valor</label><input id="cxv" inputmode="decimal" value="${val}"></div>
+      <div><label class="f">Moeda</label><select id="cxd">${moedas.map(m=>`<option ${m===de?"selected":""}>${m}</option>`).join("")}</select></div>
+    </div>
+    <div id="cxout">${linhas()}</div>
+    <div class="note">${FXLIVE?"Cotação comercial de "+esc(FXLIVE.src):"Taxa fixa do admin"}. Só referência — casas de câmbio cobram spread.</div>
+    <button class="btn gh" id="cxclose" style="margin-top:12px">Fechar</button></div></div>`;
+  const upd=()=>{val=$("#cxv").value;de=$("#cxd").value;$("#cxout").innerHTML=linhas();};
+  $("#cxv").addEventListener("input",upd);
+  $("#cxd").addEventListener("change",upd);
+  const close=()=>{$("#modal").innerHTML="";};
+  $("#cxclose").onclick=close;
+  $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)close();};
+  setTimeout(()=>{const i=$("#cxv");if(i){i.focus();i.select();}},60);
 }
 
 /* ---- 10. COFRE (meta e poupança) ----------------------- */
@@ -872,6 +928,37 @@ function mesInfo(p){
           ok:cumpriu,pct:alvo>0?clamp(noMes/alvo*100,0,100):100,meses:mr,
           ritmoFuturo:ritmoFuturo,proximo:proxMes(mk),faltaTotal:faltaTotal,acabou:faltaTotal<=0.005};
 }
+const CORPESSOA={};["#E8722E","#1B3A6B","#3E82C4","#1E9E74"].forEach((c,i)=>CORPESSOA[PEOPLE[i]]=c);
+function grupoLinha(){
+  // meses: do início do plano (ou 1º depósito) até o mês mais recente com depósito ou hoje
+  const todosMeses=[];PEOPLE.forEach(p=>((STATE.pessoas[p]||{}).depositos||[]).forEach(dep=>{if(dep.mes)todosMeses.push(dep.mes);}));
+  if(!todosMeses.length)return "";
+  const ini=(iniPoup()&&iniPoup()<Math.min.apply(null,todosMeses.map(m=>m))?iniPoup():todosMeses.sort()[0]);
+  const fimK=[monthKey(new Date())].concat(todosMeses).sort().pop();
+  const meses=[];let d=ymd(ini+"-01");let g=0;
+  while(monthKey(d)<=fimK&&g++<60){meses.push(monthKey(d));d.setMonth(d.getMonth()+1);}
+  if(meses.length<2)return "";
+  // acumulado por pessoa
+  const acc={};PEOPLE.forEach(p=>{
+    const bym={};((STATE.pessoas[p]||{}).depositos||[]).forEach(dep=>{
+      const k=dep.mes||ini;bym[k]=(bym[k]||0)+toBRL(dep.valor,dep.moeda||"BRL");});
+    let run=0;acc[p]=meses.map(k=>{run+=(bym[k]||0);return run;});
+  });
+  const maxV=Math.max(1,...PEOPLE.map(p=>acc[p][acc[p].length-1]));
+  const W=300,H=120,pl=6,pr=6,pt=8,pb=16,n=meses.length;
+  const x=i=>pl+(i/(n-1))*(W-pl-pr);
+  const y=v=>H-pb-(v/maxV)*(H-pt-pb);
+  const linhas=PEOPLE.map(p=>{
+    const pts=acc[p].map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const last=acc[p][acc[p].length-1];
+    return `<polyline points="${pts}" fill="none" stroke="${CORPESSOA[p]}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`+
+           `<circle cx="${x(n-1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="2.6" fill="${CORPESSOA[p]}"/>`;
+  }).join("");
+  const labs=meses.map((k,i)=>(n>8&&i%2)?"":`<text x="${x(i).toFixed(1)}" y="${H-4}" fill="var(--dim)" font-size="7" text-anchor="middle" font-family="Inter">${monthLabel(k)}</text>`).join("");
+  const leg=PEOPLE.map(p=>`<span style="white-space:nowrap"><i style="background:${CORPESSOA[p]}"></i>${esc(p)}</span>`).join("");
+  return `<div class="card"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:130px;display:block">${labs}${linhas}</svg>
+    <div class="lg">${leg}</div></div>`;
+}
 function mesesStrip(map){
   const keys=Object.keys(map).sort().slice(-6);
   if(!keys.length)return "";
@@ -892,6 +979,27 @@ function depositoModal(valor){
     if(v.valor<=0){toast("Informe um valor");return false;}
     savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:v.valor,moeda:v.moeda||mo,mes:v.mes||mk,nota:v.nota}])});
     toast("Depósito registrado");},"Registrar");
+}
+const MARCOS=[25,50,75,100];
+function checarMarco(me,pct){
+  try{
+    const key="tr27_marco_"+me, visto=Number(localStorage.getItem(key)||0);
+    let novo=0;MARCOS.forEach(m=>{if(pct>=m)novo=m;});
+    if(novo>visto){localStorage.setItem(key,String(novo));
+      if(visto>0||novo>=25)setTimeout(()=>celebrar(novo),350);}
+    else if(novo<visto)localStorage.setItem(key,String(novo));
+  }catch(e){}
+}
+function celebrar(m){
+  const msg=m>=100?"Meta batida! 🎉":`${m}% da meta alcançados! 🎯`;
+  toast(msg);
+  const c=document.createElement("div");c.className="confetti";
+  const cores=["#E8722E","#1B3A6B","#3E82C4","#1E9E74"];
+  for(let i=0;i<24;i++){const p=document.createElement("i");
+    p.style.left=(Math.random()*100)+"%";p.style.background=cores[i%4];
+    p.style.animationDelay=(Math.random()*.3)+"s";p.style.transform=`rotate(${Math.random()*360}deg)`;
+    c.appendChild(p);}
+  document.body.appendChild(c);setTimeout(()=>c.remove(),2200);
 }
 function renderCofre(){
   const me=STATE.me,d=meDoc();
@@ -956,8 +1064,10 @@ function renderCofre(){
       <button class="x" data-del="${x.id}" aria-label="Excluir">✕</button></div>`).join("")+`</div>`:
     '<div class="empty">Nada guardado ainda.<br>O primeiro depósito é o mais difícil.</div>'}
 
-  <div class="sect">A família</div>
+  ${grupoLinha()?`<div class="sect">Evolução do grupo<span class="r">acumulado</span></div>${grupoLinha()}`:""}
+  <div class="sect">A família<span class="r">${(()=>{const g=PEOPLE.reduce((a,p)=>a+guardado(p),0),m=PEOPLE.reduce((a,p)=>a+metaDe(p),0);return m?Math.round(g/m*100)+"% do total":"";})()}</span></div>
   <div class="card">
+    <div class="rail" style="margin:2px 0 12px"><i style="width:${(()=>{const g=PEOPLE.reduce((a,p)=>a+guardado(p),0),m=PEOPLE.reduce((a,p)=>a+metaDe(p),0);return m?clamp(g/m*100,0,100):0;})()}%"></i></div>
     <table class="tb"><thead><tr><th>Pessoa</th><th>Guardado</th><th>% da meta</th></tr></thead><tbody>
     ${PEOPLE.map(p=>{const m=metaDe(p),g=guardado(p);
       return `<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(g)}</td>
@@ -966,12 +1076,14 @@ function renderCofre(){
   </div>
   ${fm>0?`<div class="note" style="text-align:center">A meta não inclui ${fmt(fm)} da sua passagem aérea, que vai parcelada no cartão. O plano completo está em Custos.</div>`:""}`;
 
+  checarMarco(me,pct);
   const q=$("#quick");if(q)q.onclick=()=>{
     savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:conv(M.falta,moedaDe(me)),moeda:moedaDe(me),mes:M.mk,nota:"meta do mês"}])});
     toast("Mês fechado 🎉");};
   const dp=$("#dpadd");if(dp)dp.onclick=()=>depositoModal(0);
-  $("#p-cofre").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>
-    savePessoa(me,{depositos:(meDoc().depositos||[]).filter(x=>x.id!==b.dataset.del)}));
+  $("#p-cofre").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    if(!confirm("Excluir este depósito?"))return;
+    savePessoa(me,{depositos:(meDoc().depositos||[]).filter(x=>x.id!==b.dataset.del)});});
   $("#p-cofre").querySelectorAll("[data-dedit]").forEach(b=>b.onclick=()=>{
     const dep=(meDoc().depositos||[]).find(x=>x.id===b.dataset.dedit);if(!dep)return;
     openModal("Editar depósito",[
@@ -1268,7 +1380,7 @@ function renderCompras(){
 
   ${compras.length?`<div class="sect">Lista</div>`+compras.map(i=>`<div class="li ${i.ok?"done":""}">
       <div class="tick ${i.ok?"on":""}" data-ctog="${i.id}" role="button" tabindex="0">✓</div>
-      <div class="t" data-cedit="${i.id}" style="cursor:pointer"><div class="n">${esc(i.item)}</div>${i.onde?`<div class="s">${esc(i.onde)}</div>`:""}</div>
+      <div class="t"><div class="n">${esc(i.item)}</div>${i.onde?`<div class="s">${esc(i.onde)}</div>`:""}</div>
       ${Number(i.valor)>0?`<div class="v money">${fmtIn(i.valor,i.moeda)}</div>`:""}
       <button class="x" data-cedit="${i.id}" aria-label="Editar">✎</button>
       <button class="x" data-cdel="${i.id}" aria-label="Excluir">✕</button></div>`).join(""):
@@ -1290,14 +1402,15 @@ function renderCompras(){
   $("#p-compras").querySelectorAll("[data-cdel]").forEach(b=>b.onclick=()=>
     savePessoa(me,{compras:(meDoc().compras||[]).filter(x=>x.id!==b.dataset.cdel)}));
   $("#p-compras").querySelectorAll("[data-cedit]").forEach(b=>b.onclick=()=>{
-    const it=(meDoc().compras||[]).find(x=>x.id===b.dataset.cedit);if(!it)return;
+    const cid=b.dataset.cedit;
+    const it=(meDoc().compras||[]).find(x=>x.id===cid);if(!it)return;
     openModal("Editar item",[
       {id:"item",label:"O que é",value:it.item,placeholder:"Ex.: perfume"},
       {id:"valor",label:"Quanto deve custar",type:"money",value:Number(it.valor)>0?String(it.valor).replace(".",","):"",placeholder:"0,00"},
       {id:"moeda",label:"Moeda",type:"select",options:["EUR","BRL","USD"],value:it.moeda||"EUR"},
       {id:"onde",label:"Onde comprar",value:it.onde||"",placeholder:"opcional"}
     ],v=>{if(!v.item){toast("Escreva o item");return false;}
-      savePessoa(me,{compras:(meDoc().compras||[]).map(x=>x.id===it.id?Object.assign({},x,{item:v.item,valor:v.valor,moeda:v.moeda,onde:v.onde}):x)});
+      savePessoa(me,{compras:(meDoc().compras||[]).map(x=>x.id===cid?Object.assign({},x,{item:v.item,valor:parseFloat(v.valor)||0,moeda:v.moeda,onde:v.onde}):x)});
       toast("Item atualizado");},"Salvar");});
 }
 
@@ -1456,7 +1569,7 @@ function renderRacha(){
 
   <button class="btn" id="dsadd">+ Lançar despesa</button>
 
-  <div class="sect">Acerto final<span class="r">${trs.length} ${trs.length===1?"transferência":"transferências"}</span></div>
+  <div class="sect">Acerto final<span class="r">${trs.length?`<span class="lnk" id="rachashare">compartilhar</span>`:trs.length+" transferências"}</span></div>
   ${trs.length?trs.map((t,i)=>`<div class="tr">
       <div class="who">${esc(t.de)}<span class="ar">→</span>${esc(t.para)}</div>
       <div class="v money">${fmtMO(t.v/100)}</div>
@@ -1487,6 +1600,15 @@ function renderRacha(){
       <div class="s">${esc(fmtDate(t.data))}</div></div><div class="v money">${fmtIn(t.valor,t.moeda)}</div>
       <button class="x" data-pdl="${t.id}" aria-label="Excluir">✕</button></div>`).join("")}`:""}`;
 
+  const rs=$("#rachashare");
+  if(rs)rs.onclick=async()=>{
+    const linhas=trs.map(t=>`• ${t.de} → ${t.para}: ${fmtMO(t.v/100)}`).join("\n");
+    const txt=`Acerto da EuroTrip 2027 💶\nGasto do grupo: ${fmtMO(totalG)}\n\nQuem paga quem:\n${linhas}\n\n(mínimo de transferências, valores em ${MOEDA_VIAGEM()})`;
+    try{
+      if(navigator.share){await navigator.share({text:txt});}
+      else{await navigator.clipboard.writeText(txt);toast("Acerto copiado ✓");}
+    }catch(e){try{await navigator.clipboard.writeText(txt);toast("Acerto copiado ✓");}catch(_){toast("Não consegui compartilhar");}}
+  };
   $("#dsadd").onclick=()=>openModal("Nova despesa",[
     {id:"desc",label:"O que foi",placeholder:"Ex.: jantar no Hofbräuhaus"},
     {id:"valor",label:"Valor",type:"money",placeholder:"0,00"},
