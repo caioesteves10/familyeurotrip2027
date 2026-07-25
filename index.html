@@ -1126,67 +1126,87 @@ function grupoLinha(){
     let run=0;acc[p]=meses.map(k=>{run+=(bym[k]||0);return run;});
   });
   const maxV=Math.max(1,...PEOPLE.map(p=>acc[p][acc[p].length-1]));
-  const W=320,H=180,pl=8,pr=8,pt=12,pb=22,n=meses.length;
-  const x=i=>pl+(i/(n-1))*(W-pl-pr);
-  const y=v=>H-pb-(v/maxV)*(H-pt-pb);
-  // grades horizontais suaves
-  const grid=[0,.5,1].map(f=>`<line x1="${pl}" y1="${(pt+(H-pt-pb)*(1-f)).toFixed(1)}" x2="${W-pr}" y2="${(pt+(H-pt-pb)*(1-f)).toFixed(1)}" stroke="var(--line)" stroke-width="0.6"/>`).join("");
-  const linhas=PEOPLE.map(p=>{
-    const pts=acc[p].map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-    const last=acc[p][acc[p].length-1];
-    return `<polyline points="${pts}" fill="none" stroke="${CORPESSOA[p]}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`+
-           `<circle cx="${x(n-1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3" fill="${CORPESSOA[p]}"/>`;
-  }).join("");
-  const labs=meses.map((k,i)=>(n>7&&i%2)?"":`<text x="${x(i).toFixed(1)}" y="${H-6}" fill="var(--dim)" font-size="8.5" text-anchor="middle" font-family="Inter">${monthLabel(k)}</text>`).join("");
-  const leg=PEOPLE.map(p=>`<span style="white-space:nowrap"><i style="background:${CORPESSOA[p]}"></i>${esc(p)}</span>`).join("");
-  // dados para interação (tooltip): guardo tudo em JSON no elemento
-  const dados={meses:meses,people:PEOPLE,cor:PEOPLE.map(p=>CORPESSOA[p]),acc:PEOPLE.map(p=>acc[p]),cur:STATE.cur||"BRL",
-    W:W,H:H,pl:pl,pr:pr,pt:pt,pb:pb,maxV:maxV,rate:{}};
+  // dados para desenho e interação — o SVG é montado em wireChart, no tamanho real (sem distorção)
+  const dados={meses:meses,people:PEOPLE,cor:PEOPLE.map(p=>CORPESSOA[p]),acc:PEOPLE.map(p=>acc[p]),cur:STATE.cur||"BRL",maxV:maxV,rate:{}};
   ["BRL","USD","EUR"].forEach(m=>dados.rate[m]=rate(m));
+  const leg=PEOPLE.map(p=>`<span style="white-space:nowrap"><i style="background:${CORPESSOA[p]}"></i>${esc(p)}</span>`).join("");
   return `<div class="card"><div class="chartwrap">
-    <svg id="glchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;display:block;touch-action:pan-y">
-      ${grid}${labs}${linhas}
-      <line id="glcursor" x1="0" y1="${pt}" x2="0" y2="${H-pb}" stroke="var(--muted)" stroke-width="0.8" stroke-dasharray="3 3" style="opacity:0"/>
-      <g id="gldots"></g>
-    </svg>
+    <svg id="glchart" style="width:100%;display:block;touch-action:pan-y"></svg>
     <div id="gltip" class="chart-tip" style="opacity:0"></div>
     <div class="glmeta" style="display:none">${esc(JSON.stringify(dados))}</div>
   </div>
     <div class="lg">${leg}</div></div>`;
 }
-/* interação do gráfico de linha: mostra valores por mês ao passar o mouse / arrastar o dedo */
+/* desenha o gráfico no tamanho REAL do container (1 unidade svg = 1px → sem distorção)
+   e liga a interação de hover/toque */
 function wireChart(){
   const svg=document.getElementById("glchart");if(!svg||!svg.parentElement)return;
   const metaEl=svg.parentElement.querySelector&&svg.parentElement.querySelector(".glmeta");if(!metaEl)return;
   let D;try{D=JSON.parse(metaEl.textContent);}catch(e){return;}
-  const tip=document.getElementById("gltip"),cur=document.getElementById("glcursor"),dots=document.getElementById("gldots");
-  const xAt=i=>D.pl+(i/(D.meses.length-1))*(D.W-D.pl-D.pr);
-  const yAt=v=>D.H-D.pb-(v/D.maxV)*(D.H-D.pt-D.pb);
+  const tip=document.getElementById("gltip");
+  const wrap=svg.parentElement;
+  function draw(){
+    const W=Math.round(wrap.clientWidth||320);
+    // altura conforme viewport (desktop maior)
+    const H=window.innerWidth>=900?240:180;
+    const pl=12,pr=16,pt=18,pb=28,n=D.meses.length;
+    svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+    svg.setAttribute("width",W);svg.setAttribute("height",H);
+    svg.style.height=H+"px";
+    svg.style.overflow="visible";
+    const x=i=>pl+(i/(n-1))*(W-pl-pr);
+    const y=v=>H-pb-(v/D.maxV)*(H-pt-pb);
+    // grade horizontal em 4 níveis, com o valor de referência à esquerda
+    const niveis=[0,.25,.5,.75,1];
+    const grid=niveis.map(f=>{const yy=(pt+(H-pt-pb)*(1-f));
+      return `<line x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}" stroke="var(--line)" stroke-width="1" shape-rendering="crispEdges"/>`;}).join("");
+    const linhas=D.people.map((p,pi)=>{
+      const pts=D.acc[pi].map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+      const last=D.acc[pi][D.acc[pi].length-1];
+      return `<polyline points="${pts}" fill="none" stroke="${D.cor[pi]}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`+
+             `<circle cx="${x(n-1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.4" fill="${D.cor[pi]}"/>`;
+    }).join("");
+    const step=Math.max(1,Math.ceil(n/(W>560?12:6)));
+    const labs=D.meses.map((k,i)=>(i%step&&i!==n-1)?"":`<text x="${x(i).toFixed(1)}" y="${H-9}" fill="var(--dim)" font-size="10.5" text-anchor="middle" font-family="Inter,sans-serif" font-weight="600">${monthLabel(k)}</text>`).join("");
+    svg.innerHTML=`${grid}${labs}${linhas}
+      <line id="glcursor" x1="0" y1="${pt}" x2="0" y2="${H-pb}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" style="opacity:0"/>
+      <g id="gldots"></g>`;
+    svg._geo={W:W,H:H,pl:pl,pr:pr,pt:pt,pb:pb,x:x,y:y,n:n};
+  }
+  draw();
   const conv=(brl)=>{const r=D.rate[D.cur]||1;return D.cur==="BRL"?brl:brl/r;};
   const money=(brl)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:D.cur||"BRL",maximumFractionDigits:0}).format(conv(brl));
   function show(clientX){
+    const geo=svg._geo;if(!geo)return;
+    const cur=document.getElementById("glcursor"),dots=document.getElementById("gldots");
     const box=svg.getBoundingClientRect();
-    const rel=(clientX-box.left)/box.width; // 0..1
-    let i=Math.round(rel*(D.meses.length-1));i=Math.max(0,Math.min(D.meses.length-1,i));
-    const px=xAt(i);
-    cur.setAttribute("x1",px);cur.setAttribute("x2",px);cur.style.opacity="1";
-    dots.innerHTML=D.people.map((p,pi)=>`<circle cx="${px.toFixed(1)}" cy="${yAt(D.acc[pi][i]).toFixed(1)}" r="3.4" fill="${D.cor[pi]}" stroke="#fff" stroke-width="1.2"/>`).join("");
-    // ordena por valor desc no tooltip
+    const rel=(clientX-box.left)/box.width;
+    let i=Math.round(rel*(geo.n-1));i=Math.max(0,Math.min(geo.n-1,i));
+    const px=geo.x(i);
+    if(cur){cur.setAttribute("x1",px);cur.setAttribute("x2",px);cur.style.opacity="1";}
+    if(dots)dots.innerHTML=D.people.map((p,pi)=>`<circle cx="${px.toFixed(1)}" cy="${geo.y(D.acc[pi][i]).toFixed(1)}" r="4" fill="${D.cor[pi]}" stroke="var(--panel)" stroke-width="1.6"/>`).join("");
     const linhas=D.people.map((p,pi)=>({p:p,c:D.cor[pi],v:D.acc[pi][i]})).sort((a,b)=>b.v-a.v);
     tip.innerHTML=`<div class="tt-h">${esc(monthLabel(D.meses[i]))}</div>`+
       linhas.map(l=>`<div class="tt-r"><span><i style="background:${l.c}"></i>${esc(l.p)}</span><b>${money(l.v)}</b></div>`).join("");
-    // posiciona o tooltip perto do cursor, dentro do card
-    const wrap=svg.parentElement.getBoundingClientRect();
-    let left=(px/D.W)*wrap.width;
-    left=Math.max(6,Math.min(wrap.width-tip.offsetWidth-6,left-tip.offsetWidth/2));
-    tip.style.left=left+"px";tip.style.opacity="1";
+    // canto superior oposto ao dedo/cursor — nunca em cima dos pontos
+    const wrapR=wrap.getBoundingClientRect();
+    const relW=(clientX-wrapR.left)/wrapR.width; // 0..1 dentro do card
+    const tw=tip.offsetWidth||150;
+    let left = relW < 0.5 ? (wrapR.width-tw-8) : 8;
+    left=Math.max(6,Math.min(wrapR.width-tw-6,left));
+    tip.style.left=left+"px";tip.style.top="6px";tip.style.opacity="1";
   }
-  function hide(){cur.style.opacity="0";tip.style.opacity="0";dots.innerHTML="";}
+  function hide(){const cur=document.getElementById("glcursor"),dots=document.getElementById("gldots");
+    if(cur)cur.style.opacity="0";if(dots)dots.innerHTML="";tip.style.opacity="0";}
   svg.addEventListener("mousemove",e=>show(e.clientX));
   svg.addEventListener("mouseleave",hide);
   svg.addEventListener("touchstart",e=>{if(e.touches[0])show(e.touches[0].clientX);},{passive:true});
   svg.addEventListener("touchmove",e=>{if(e.touches[0])show(e.touches[0].clientX);},{passive:true});
   svg.addEventListener("touchend",hide);
+  // redesenha se a largura mudar (girar tela / redimensionar janela)
+  if(window._glResize)window.removeEventListener("resize",window._glResize);
+  window._glResize=()=>{if(document.getElementById("glchart")===svg)draw();};
+  window.addEventListener("resize",window._glResize);
 }
 function mesesStrip(map){
   const keys=Object.keys(map).sort().slice(-6);
