@@ -827,15 +827,21 @@ function metaDe(p){const m=Number((STATE.pessoas[p]||{}).meta)||0;return m>0?m:o
 const metaAuto=p=>!(Number((STATE.pessoas[p]||{}).meta)>0);
 
 /* ---- 9. RENDER GERAL ----------------------------------- */
+let _rendering=false;
 function renderAll(){
-  if(!STATE.me)return;
-  const ae=document.activeElement, aid=ae&&ae.id, asel=ae&&ae.selectionStart;
+  if(!STATE.me||_rendering)return;
+  _rendering=true;
+  // só preserva foco de campos fixos do app (busca de mês etc.), nunca de inputs do modal
+  const ae=document.activeElement;
+  const inModal=ae&&ae.closest&&ae.closest("#modal");
+  const aid=(!inModal&&ae&&ae.id)?ae.id:null, asel=aid?ae.selectionStart:null;
   const sy=window.scrollY;
   renderHeader();buildNav();
   renderCofre();renderCustos();renderRoteiro();renderCompras();renderCheck();renderRacha();renderAdmin();
   applyTab();
   window.scrollTo(0,sy);
-  if(aid){const el=document.getElementById(aid);if(el&&el.focus){el.focus();try{el.setSelectionRange(asel,asel);}catch(e){}}}
+  if(aid){const el=document.getElementById(aid);if(el&&el.focus){try{el.focus();el.setSelectionRange(asel,asel);}catch(e){}}}
+  _rendering=false;
 }
 function renderHeader(){
   const c=STATE.config,cs=c.cidades||[];
@@ -1296,7 +1302,13 @@ function openModal(title,fields,onSave,saveLabel){
         out[f.id]=sel.value==="__nova__"?($("#m_"+f.id+"_nova").value.trim()||"Outros"):sel.value;}
       else out[f.id]=$("#m_"+f.id).value.trim();
     });
-    if(onSave(out)!==false)close();
+    // recolhe o teclado do celular antes de mexer no DOM (evita travar a WebView no mobile)
+    if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+    // fecha o modal primeiro; salva logo depois, já sem o modal e sem o teclado na tela
+    const salvar=()=>onSave(out);
+    // valida antes de fechar: onSave retorna false quando falta algo
+    let ok=true; try{ok=(salvar()!==false);}catch(e){console.error(e);toast("Erro ao salvar");ok=true;}
+    if(ok)close();
   };
 }
 
