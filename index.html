@@ -250,6 +250,21 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .act .b .n{font-size:14.5px;font-weight:600}
 .act .b .s{font-size:12px;color:var(--dim);margin-top:3px;line-height:1.5}
 .act .b .s a{word-break:break-all}
+/* passeio marcado como feito durante a viagem */
+.act.act-done{opacity:.55}
+.act.act-done .b .n{text-decoration:line-through;text-decoration-color:var(--dim)}
+.actcheck{flex:0 0 24px;width:24px;height:24px;border-radius:50%;border:2px solid var(--line2);
+ background:var(--panel);color:#fff;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;
+ padding:0;transition:background .15s,border-color .15s,transform .1s;margin-top:1px}
+.actcheck.on{background:var(--ok);border-color:var(--ok)}
+.actcheck:active{transform:scale(.88)}
+.hoje-act.done{opacity:.5;text-decoration:line-through}
+/* cidade como filtro clicável */
+.citychip{transition:transform .1s,box-shadow .15s,opacity .15s}
+.citychip:active{transform:scale(.94)}
+.citychip.sel{box-shadow:0 0 0 2px var(--navy);opacity:1}
+.citychip:not(.sel){opacity:.72}
+.row:has(.citychip.sel) .citychip:not(.sel){opacity:.5}
 
 /* acerto */
 .tr{display:flex;align-items:center;gap:10px;background:var(--panel);
@@ -364,9 +379,8 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
   /* grades de 2 colunas para blocos densos (custos/racha) */
   .dtwo{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
   .dcol{display:flex;flex-direction:column}
-  /* (2) roteiro em 2 colunas no desktop (masonry via CSS columns) */
-  .daygrid{column-count:2;column-gap:16px}
-  .daygrid .day{break-inside:avoid;margin-bottom:14px}
+  /* (2) roteiro em coluna única (mais senso de continuidade na linha do tempo) */
+  .daygrid{column-count:1}
 
   /* (1) resumo fixo no rodapé da sidebar */
   .nav .navsum{display:block;margin-top:auto;padding:14px 12px 4px;border-top:1px solid var(--line);flex:0 0 auto}
@@ -727,6 +741,7 @@ function parseMoney(s){
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast._i);toast._i=setTimeout(()=>t.classList.remove("show"),2100);}
 function isAdmin(){return localStorage.getItem(LS.admin)==="1";}
 function cityOf(k){return (STATE.config.cidades||[]).find(c=>c.k===k)||{k:k,n:"—"};}
+const sameDay=(base)=>String(base).slice(0,10)===new Date().toISOString().slice(0,10);
 
 /* ---- 5. FIREBASE --------------------------------------- */
 async function initFB(){
@@ -1567,6 +1582,22 @@ function openModal(title,fields,onSave,saveLabel){
 
 /* ---- 13. ROTEIRO --------------------------------------- */
 let roteiroBusca="";
+let roteiroCidade="";  // filtro de cidade ("" = todas)
+/* próximos passeios (não concluídos) a partir de agora, durante a viagem */
+function proximosPasseios(dias){
+  const agora=new Date();
+  const out=[];
+  dias.forEach(d=>{
+    const base=String(d.data).slice(0,10);
+    (d.itens||[]).forEach(a=>{
+      if(a.feito)return;
+      let quando=new Date(base+"T"+((/^\d{1,2}:\d{2}$/.test(a.hora||"")?a.hora:"23:59"))+":00");
+      out.push({dia:d,a:a,quando:quando,base:base});
+    });
+  });
+  return out.filter(x=>x.quando>=new Date(agora.getTime()-3*3600*1000)) // tolera passeio em andamento (3h)
+    .sort((x,y)=>x.quando-y.quando);
+}
 function renderRoteiro(){
   let dias=(STATE.roteiro.dias||[]).slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)));
   const adm=isAdmin();
@@ -1578,36 +1609,63 @@ function renderRoteiro(){
   if(q)dias=dias.map(d=>Object.assign({},d,{itens:(d.itens||[]).filter(a=>
     (a.titulo||"").toLowerCase().includes(q)||(a.nota||"").toLowerCase().includes(q))}))
     .filter(d=>(d.titulo||"").toLowerCase().includes(q)||(d.itens||[]).length);
+  // filtro por cidade
+  const cidExiste=(STATE.config.cidades||[]).some(c=>c.k===roteiroCidade);
+  if(!cidExiste)roteiroCidade="";
+  const diasView=roteiroCidade?dias.filter(d=>d.cidade===roteiroCidade):dias;
+  const emV=emViagem();
+  const prox=emV?proximosPasseios(dias):[];
 
   $("#p-roteiro").innerHTML=`
   <div class="card tight">
     <div class="row">${(STATE.config.cidades||[]).map(c=>`<div class="grow" style="text-align:center">
-      <div class="pill ${c.k}" style="display:inline-block">${esc(c.n)}</div>
+      <div class="pill ${c.k} citychip ${roteiroCidade===c.k?"sel":""}" data-cidfil="${esc(c.k)}" role="button" tabindex="0" style="display:inline-block;cursor:pointer">${esc(c.n)}</div>
       <div class="note" style="margin-top:5px">${fmtDate(c.de).slice(4)} – ${fmtDate(c.ate).slice(4)}</div></div>`).join("")}</div>
+    ${roteiroCidade?`<div class="note" style="text-align:center;margin-top:8px">Mostrando só ${esc(cityOf(roteiroCidade).n)} · <span class="lnk" id="cidlimpa">ver tudo</span></div>`:""}
   </div>
-  ${(emViagem()&&diaHoje)?`<div class="hoje-card">
+  ${(emV&&prox.length)?`<div class="strip" style="margin-bottom:8px">
+    <div class="lbl" style="color:rgba(255,255,255,.7)">Próximo passeio</div>
+    <div class="disp" style="font-size:24px;color:#fff;margin:2px 0 2px">${esc(prox[0].a.titulo)}</div>
+    <div class="when" style="color:rgba(255,255,255,.8)">${prox[0].a.hora&&prox[0].a.hora!=="—"?prox[0].a.hora+" · ":""}${esc(cityOf(prox[0].dia.cidade).n)}${sameDay(prox[0].base)?"":" · "+fmtDate(prox[0].base).slice(0,3)}</div>
+    ${prox[1]?`<div class="perf"></div><div class="route" style="margin-top:9px;font-size:12px;color:rgba(255,255,255,.85)"><b style="color:var(--orange)">depois:</b> ${prox[1].a.hora&&prox[1].a.hora!=="—"?prox[1].a.hora+" · ":""}${esc(prox[1].a.titulo)}</div>`:""}
+  </div>`:""}
+  ${(emV&&diaHoje)?`<div class="hoje-card">
     <div class="lbl" style="color:#fff;opacity:.85">Hoje · ${fmtDate(diaHoje.data)}</div>
     <div class="disp" style="font-size:20px;margin:2px 0 8px">${esc(diaHoje.titulo||cityOf(diaHoje.cidade).n)}</div>
-    ${(diaHoje.itens||[]).length?(diaHoje.itens||[]).map(a=>`<div class="hoje-act"><b>${esc(a.hora||"—")}</b> ${esc(a.titulo)}</div>`).join(""):'<div class="hoje-act" style="opacity:.8">Dia livre — aproveitem!</div>'}
+    ${(diaHoje.itens||[]).length?(diaHoje.itens||[]).map(a=>`<div class="hoje-act ${a.feito?"done":""}"><b>${esc(a.hora||"—")}</b> ${esc(a.titulo)}</div>`).join(""):'<div class="hoje-act" style="opacity:.8">Dia livre — aproveitem!</div>'}
   </div>`:""}
   <div class="searchbar"><input id="rotbusca" placeholder="Buscar no roteiro…" value="${esc(roteiroBusca)}">${roteiroBusca?`<button id="rotlimpa" aria-label="Limpar">✕</button>`:""}</div>
   <div class="daygrid">
-  ${dias.length?dias.map(d=>{
+  ${diasView.length?diasView.map(d=>{
     const c=cityOf(d.cidade);
+    const dpast=emV&&String(d.data).slice(0,10)<hojeKey;
     return `<div class="day ${esc(d.cidade)}"><div class="dot"></div>
       <div class="dh"><div class="d">${fmtDate(d.data)}</div><div class="c">${esc(c.n)}</div>
         <div class="grow" style="font-size:13px;color:var(--muted);font-weight:600">${esc(d.titulo||"")}</div>
         ${adm?`<button class="x" data-ddel="${d.id}" aria-label="Excluir dia">✕</button>`:""}</div>
-      ${(d.itens||[]).map(a=>`<div class="act">
-        <div class="h">${esc(a.hora||"—")}</div>
-        <div class="b"><div class="n">${esc(a.titulo)}</div>${a.nota?`<div class="s">${esc(a.nota)}</div>`:""}
+      ${(d.itens||[]).map(a=>`<div class="act ${a.feito?"act-done":""}">
+        ${emV?`<button class="actcheck ${a.feito?"on":""}" data-adone="${d.id}|${a.id}" aria-label="${a.feito?"Desmarcar":"Marcar como feito"}">${a.feito?"✓":""}</button>`:`<div class="h">${esc(a.hora||"—")}</div>`}
+        <div class="b"><div class="n">${emV&&a.hora&&a.hora!=="—"?`<span style="color:var(--dim);font-weight:700">${esc(a.hora)}</span> `:""}${esc(a.titulo)}</div>${a.nota?`<div class="s">${esc(a.nota)}</div>`:""}
           ${Number(a.valor)>0?`<div class="s"><b style="color:var(--ber)">${fmtIn(a.valor,a.moeda||"EUR")}</b> · ${(!Array.isArray(a.quem)||a.quem.length>=PEOPLE.length)?"todos":a.quem.map(esc).join(", ")} · ${fmt(toBRL(a.valor,a.moeda||"EUR")/((Array.isArray(a.quem)&&a.quem.length)?a.quem.length:PEOPLE.length))} cada</div>`:""}</div>
         ${adm?`<button class="x" data-adel="${d.id}|${a.id}" aria-label="Excluir">✕</button>`:""}</div>`).join("")}
       ${adm?`<button class="btn gh sm" data-aadd="${d.id}" style="margin:2px 0 4px">+ atividade</button>`:""}
-    </div>`;}).join(""):'<div class="empty">Roteiro vazio.<br>O admin monta os dias por aqui.</div>'}
+    </div>`;}).join(""):`<div class="empty">${roteiroCidade?"Nenhuma programação em "+esc(cityOf(roteiroCidade).n)+".":"Roteiro vazio.<br>O admin monta os dias por aqui."}</div>`}
   </div>
   ${adm?'<button class="btn sec" id="dayadd" style="margin-top:8px">+ Novo dia</button>':
     '<div class="note" style="text-align:center">Sugestão de passeio? Manda pro Caio incluir.</div>'}`;
+
+  // filtros de cidade
+  $("#p-roteiro").querySelectorAll("[data-cidfil]").forEach(el=>{
+    const tog=()=>{roteiroCidade=(roteiroCidade===el.dataset.cidfil)?"":el.dataset.cidfil;renderRoteiro();};
+    el.onclick=tog;
+    el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tog();}};});
+  const cl=$("#cidlimpa");if(cl)cl.onclick=()=>{roteiroCidade="";renderRoteiro();};
+  // marcar/desmarcar passeio como feito (durante a viagem)
+  $("#p-roteiro").querySelectorAll("[data-adone]").forEach(b=>b.onclick=()=>{
+    const[di,ai]=b.dataset.adone.split("|");
+    vibrar(12);
+    saveDoc("roteiro",{dias:(STATE.roteiro.dias||[]).map(d=>d.id===di?
+      Object.assign({},d,{itens:(d.itens||[]).map(a=>a.id===ai?Object.assign({},a,{feito:!a.feito}):a)}):d)});});
 
   const sb=$("#rotbusca");
   if(sb){sb.oninput=()=>{roteiroBusca=sb.value;const p=sb.selectionStart;renderRoteiro();const n=$("#rotbusca");if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};}
@@ -1860,11 +1918,11 @@ function renderRacha(){
       <div class="disp money" style="font-size:22px;color:${Math.abs(meuC)<0.005?"var(--muted)":(meuC>0?"var(--danger)":"var(--ok)")}">${fmtMO(Math.abs(meuC))}</div></div>
   </div></div>
 
-  <button class="btn" id="dsadd">+ Lançar despesa</button>
+  <button class="btn" id="dsadd" style="margin:14px 0 4px">+ Lançar despesa</button>
 
-  <div class="dtwo">
+  <div class="dtwo" style="margin-top:8px">
   <div class="dcol">
-  <div class="sect" style="margin-top:0">Acerto final<span class="r">${trs.length?`<span class="lnk" id="rachashare">compartilhar</span>`:trs.length+" transferências"}</span></div>
+  <div class="sect" style="margin-top:6px">Acerto final<span class="r">${trs.length?`<span class="lnk" id="rachashare">compartilhar</span>`:trs.length+" transferências"}</span></div>
   ${trs.length?trs.map((t,i)=>`<div class="tr">
       <div class="who">${esc(t.de)}<span class="ar">→</span>${esc(t.para)}</div>
       <div class="v money">${fmtMO(t.v/100)}</div>
@@ -1874,7 +1932,7 @@ function renderRacha(){
     '<div class="empty">Sem despesas ainda.<br>Durante a viagem, lance aqui quem pagou o quê.</div>')}
   </div>
   <div class="dcol">
-  <div class="sect" style="margin-top:0">Saldo de cada um</div>
+  <div class="sect" style="margin-top:6px">Saldo de cada um</div>
   <div class="card">
     ${PEOPLE.map(p=>{const v=(bal[p]||0)/100,w=Math.abs(bal[p]||0)/maxAbs*100;
       return `<div class="bal"><div class="n ${p===me?"":""}" style="${p===me?"color:var(--par)":""}">${esc(p)}</div>
@@ -2004,11 +2062,15 @@ function renderAdmin(){
     <div class="sect">Cidades</div>
     <div class="card">
       ${(c.cidades||[]).map((x,i)=>`<div class="row" style="gap:7px;margin-bottom:7px">
-        <input data-cn="${i}" value="${esc(x.n)}" style="flex:2">
+        <input data-cn="${i}" value="${esc(x.n)}" style="flex:2" placeholder="Cidade">
         <input data-cd="${i}" type="date" value="${esc(x.de)}" style="flex:2">
-        <input data-ca="${i}" type="date" value="${esc(x.ate)}" style="flex:2"></div>`).join("")}
-      <button class="btn sec" id="cidsave">Salvar cidades</button>
-      <div class="note">A ordem das cidades define a rota no topo. As cores do roteiro seguem a ordem: rosa, azul, âmbar.</div>
+        <input data-ca="${i}" type="date" value="${esc(x.ate)}" style="flex:2">
+        <button class="x" data-cidel="${i}" aria-label="Remover cidade">✕</button></div>`).join("")}
+      <div class="row" style="gap:8px;margin-top:4px">
+        <button class="btn sec" id="cidadd" style="flex:1">+ Cidade</button>
+        <button class="btn" id="cidsave" style="flex:2">Salvar cidades</button>
+      </div>
+      <div class="note">A ordem das cidades define a rota no topo e serve de filtro no roteiro. Remover uma cidade não apaga os dias já criados nela — só some do topo. Salve para aplicar.</div>
     </div>
   </div>
 
@@ -2063,12 +2125,25 @@ function renderAdmin(){
       fx:{EUR:parseMoney($("#ceur").value)||6.2,USD:parseMoney($("#cusd").value)||5.4}});
     toast("Viagem atualizada");};
   const cds=$("#cidsave");
-  if(cds)cds.onclick=()=>{
-    const cid=(c.cidades||[]).map((x,i)=>Object.assign({},x,{
-      n:el.querySelector(`[data-cn="${i}"]`).value.trim()||x.n,
-      de:el.querySelector(`[data-cd="${i}"]`).value||x.de,
-      ate:el.querySelector(`[data-ca="${i}"]`).value||x.ate}));
-    saveDoc("config",{cidades:cid});toast("Cidades atualizadas");};
+  const lerCidades=()=>(c.cidades||[]).map((x,i)=>{
+    const gn=el.querySelector(`[data-cn="${i}"]`),gd=el.querySelector(`[data-cd="${i}"]`),ga=el.querySelector(`[data-ca="${i}"]`);
+    return Object.assign({},x,{n:gn?(gn.value.trim()||x.n):x.n,de:gd?(gd.value||x.de):x.de,ate:ga?(ga.value||x.ate):x.ate});
+  });
+  const slug=(nome)=>{
+    let base=(nome||"cidade").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"")||"cidade";
+    const usados=new Set((c.cidades||[]).map(x=>x.k));let k=base,n=2;while(usados.has(k)){k=base+n;n++;}return k;
+  };
+  if(cds)cds.onclick=()=>{saveDoc("config",{cidades:lerCidades()});toast("Cidades atualizadas");};
+  const cad=$("#cidadd");
+  if(cad)cad.onclick=()=>{
+    const atual=lerCidades();
+    const nova={k:slug("cidade"),n:"Nova cidade",de:c.inicio||"",ate:c.fim||""};
+    saveDoc("config",{cidades:atual.concat([nova])});toast("Cidade adicionada — edite o nome");};
+  el.querySelectorAll("[data-cidel]").forEach(b=>b.onclick=()=>{
+    const i=Number(b.dataset.cidel);const atual=lerCidades();
+    if(atual.length<=1){toast("Deixe ao menos uma cidade");return;}
+    if(!confirm(`Remover ${atual[i].n} do topo?`))return;
+    atual.splice(i,1);saveDoc("config",{cidades:atual});toast("Cidade removida");});
   const ao=$("#aout");
   if(ao)ao.onclick=()=>{localStorage.removeItem(LS.admin);show("cofre");renderAll();toast("Modo admin desligado");};
   const rz=$("#rzerar");
