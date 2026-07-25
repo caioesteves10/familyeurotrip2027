@@ -141,6 +141,32 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
  border-radius:99px;padding:5px 12px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;white-space:nowrap}
 .catchip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .catchip:active{transform:scale(.95)}
+/* divisor de restaurante */
+.rest-box{max-width:520px}
+.rest-sec{font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.rest-grand{font-size:14px;color:var(--navy);text-transform:none;letter-spacing:0}
+.rst-item{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px 10px;margin-bottom:8px}
+.rst-item-top{display:flex;gap:7px;align-items:center}
+.rst-nome{flex:1;min-width:0}
+.rst-val{width:88px;flex:0 0 auto;text-align:right}
+.rst-del{flex:0 0 auto}
+.rst-quem{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.rst-chip{font-size:11.5px;font-weight:700;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:4px 11px;cursor:pointer;transition:all .12s;white-space:nowrap}
+.rst-chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.rst-chip:active{transform:scale(.94)}
+.rst-inrow{display:flex;gap:6px}
+.rst-inrow input{flex:1;min-width:0}
+.rst-unit{flex:0 0 auto;width:54px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;font-weight:800;color:var(--navy);cursor:pointer;font-size:13px}
+.rst-unit:active{transform:scale(.94)}
+.rst-tot{background:var(--panel2);border-radius:12px;padding:10px 12px}
+.rst-totrow{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:14px;font-weight:600}
+.rst-totrow b{color:var(--navy);font-weight:800}
+.rst-totrow.rst-sub{border-top:1px solid var(--line);margin-top:6px;padding-top:8px;font-size:11.5px;color:var(--dim);font-weight:600}
+.rst-pags{display:flex;flex-direction:column;gap:7px}
+.rst-pagrow{display:flex;align-items:center;gap:9px}
+.rst-pagval{flex:1;min-width:0}
+.rst-actions{display:flex;gap:9px;margin-top:14px}
+.rst-actions .btn{flex:1}
 
 /* ---------- barra inferior ---------- */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--panel);
@@ -395,10 +421,10 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 
   /* (1) resumo fixo no rodapé da sidebar */
   .nav .navsum{display:block;margin-top:auto;padding:14px 12px 4px;border-top:1px solid var(--line);flex:0 0 auto}
-  .navsum-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);font-weight:700}
-  .navsum-row b{color:var(--navy);font-size:13px}
-  .navsum-bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px}
-  .navsum-bar i{display:block;height:100%;min-width:7px;background:var(--orange);border-radius:99px;transition:width .5s}
+  .nav .navsum-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);font-weight:700;padding:0}
+  .nav .navsum-row b{color:var(--navy);font-size:13px}
+  .nav .navsum-bar{height:7px;padding:0;border:0;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px;flex:0 0 auto;position:relative;display:block;box-sizing:border-box}
+  .nav .navsum-bar i{position:absolute;left:0;top:0;bottom:0;display:block;height:7px;min-width:7px;background:var(--orange);border-radius:99px;transition:width .5s}
   .nav{display:flex}
 
   /* (5) botões de ação (editar/excluir) aparecem só no hover da linha */
@@ -1114,6 +1140,186 @@ function abrirCambio(){
   $("#cxclose").onclick=close;
   $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)close();};
   setTimeout(()=>{const i=$("#cxv");if(i){i.focus();i.select();}},60);
+}
+
+/* ---- Divisor de conta de restaurante --------------------
+   Itens (valor + quem consumiu, dividido igualmente entre eles);
+   gorjeta e imposto (valor OU %) rateados na proporção do que cada
+   um consumiu; um ou mais pagadores com o quanto cada um pôs; no fim,
+   vira despesa(s) no racha (uma por pagador, cada devedor sozinho no
+   rateio para expressar o valor exato que deve).                     */
+let _restState=null;
+function abrirRestaurante(){
+  const cur=MOEDA_VIAGEM();
+  if(!_restState)_restState={
+    itens:[{id:uid(),nome:"",valor:"",quem:[]}],
+    gorjTipo:"valor",gorjVal:"",  impTipo:"valor",impVal:"",
+    pagadores:{} // nome -> quanto colocou (string)
+  };
+  const S=_restState;
+  const money=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:cur,maximumFractionDigits:2}).format(v||0);
+
+  // ---- cálculos ----
+  function calc(){
+    const consumo={};PEOPLE.forEach(p=>consumo[p]=0);
+    let subtotal=0;
+    S.itens.forEach(it=>{
+      const v=parseMoney(it.valor)||0;if(v<=0||!it.quem.length)return;
+      subtotal+=v;const each=v/it.quem.length;
+      it.quem.forEach(p=>{if(consumo[p]!=null)consumo[p]+=each;});
+    });
+    const gorj=S.gorjTipo==="pct"?subtotal*((parseMoney(S.gorjVal)||0)/100):(parseMoney(S.gorjVal)||0);
+    const imp =S.impTipo==="pct" ?subtotal*((parseMoney(S.impVal )||0)/100):(parseMoney(S.impVal )||0);
+    const extra=gorj+imp;
+    // rateia extra na proporção do consumo
+    const total={};PEOPLE.forEach(p=>{
+      const share=subtotal>0?consumo[p]/subtotal:0;
+      total[p]=consumo[p]+extra*share;
+    });
+    const grand=subtotal+extra;
+    return {consumo,subtotal,gorj,imp,extra,total,grand};
+  }
+
+  function render(){
+    const R=calc();
+    const consumidores=PEOPLE.filter(p=>R.total[p]>0.005);
+    const pagPostos=Object.keys(S.pagadores).filter(p=>parseMoney(S.pagadores[p])>0);
+    const somaPag=pagPostos.reduce((a,p)=>a+parseMoney(S.pagadores[p]),0);
+    const difere=Math.abs(somaPag-R.grand)>0.02;
+
+    $("#modal").innerHTML=`<div class="modal"><div class="box rest-box"><h3>Dividir conta de restaurante</h3>
+      <div class="rest-sec">Itens</div>
+      <div id="rst-itens">${S.itens.map(it=>`<div class="rst-item" data-it="${it.id}">
+        <div class="rst-item-top">
+          <input class="rst-nome" data-f="nome" placeholder="Item (ex.: Pizza)" value="${esc(it.nome)}">
+          <input class="rst-val" data-f="valor" inputmode="decimal" placeholder="0,00" value="${esc(it.valor)}">
+          <button class="x rst-del" aria-label="Remover">✕</button>
+        </div>
+        <div class="rst-quem">${PEOPLE.map(p=>`<span class="rst-chip ${it.quem.includes(p)?"on":""}" data-p="${esc(p)}">${esc(p)}</span>`).join("")}</div>
+      </div>`).join("")}</div>
+      <button class="btn gh sm" id="rst-add" style="margin:2px 0 12px">+ Item</button>
+
+      <div class="rest-sec">Gorjeta e imposto</div>
+      <div class="f2" style="margin-bottom:8px">
+        <div><label class="f">Gorjeta</label>
+          <div class="rst-inrow"><input id="rst-gv" inputmode="decimal" placeholder="0" value="${esc(S.gorjVal)}">
+            <button class="rst-unit" id="rst-gt">${S.gorjTipo==="pct"?"%":cur}</button></div></div>
+        <div><label class="f">Imposto</label>
+          <div class="rst-inrow"><input id="rst-iv" inputmode="decimal" placeholder="0" value="${esc(S.impVal)}">
+            <button class="rst-unit" id="rst-it">${S.impTipo==="pct"?"%":cur}</button></div></div>
+      </div>
+
+      <div class="rest-sec">Quanto cada um deve<span class="rest-grand">${money(R.grand)}</span></div>
+      ${consumidores.length?`<div class="rst-tot">${consumidores.map(p=>`<div class="rst-totrow">
+        <span>${esc(p)}</span>
+        <b>${money(R.total[p])}</b></div>`).join("")}
+        <div class="rst-totrow rst-sub"><span>Subtotal ${money(R.subtotal)} · gorjeta ${money(R.gorj)} · imposto ${money(R.imp)}</span></div>
+        </div>`:`<div class="note">Adicione itens e marque quem consumiu cada um.</div>`}
+
+      <div class="rest-sec">Quem pagou?</div>
+      <div class="rst-pags">${PEOPLE.map(p=>{
+        const on=S.pagadores[p]!=null;
+        return `<div class="rst-pagrow ${on?"on":""}">
+          <span class="rst-chip ${on?"on":""}" data-pag="${esc(p)}">${esc(p)}</span>
+          ${on?`<input class="rst-pagval" data-pagv="${esc(p)}" inputmode="decimal" placeholder="quanto pôs" value="${esc(S.pagadores[p]||"")}">`:""}</div>`;}).join("")}</div>
+      ${pagPostos.length?`<div class="note" id="rst-pagnota" style="margin-top:6px">Pagadores somam ${money(somaPag)} de ${money(R.grand)}${difere?` <b style="color:var(--danger)">— confira, não fecha com o total</b>`:" ✓"}</div>`:`<div class="note" id="rst-pagnota" style="margin-top:6px">Marque quem pagou e quanto cada um colocou.</div>`}
+
+      <div class="rst-actions">
+        <button class="btn gh" id="rst-close">Fechar</button>
+        <button class="btn" id="rst-add-racha" ${(!consumidores.length||!pagPostos.length||difere)?"disabled":""}>Adicionar ao racha</button>
+      </div>
+      <div class="note">Cria uma despesa no racha por pagador, com o valor exato que cada pessoa deve. Nada é salvo até você clicar em "Adicionar ao racha".</div>
+    </div></div>`;
+    wire(R,consumidores,pagPostos,somaPag,difere);
+  }
+
+  function wire(R,consumidores,pagPostos,somaPag,difere){
+    // itens: nome/valor
+    $("#modal").querySelectorAll(".rst-item").forEach(row=>{
+      const id=row.dataset.it, it=S.itens.find(x=>x.id===id);if(!it)return;
+      row.querySelectorAll("[data-f]").forEach(inp=>inp.oninput=()=>{it[inp.dataset.f]=inp.value;/* recalc leve */liveTotals();});
+      row.querySelector(".rst-del").onclick=()=>{S.itens=S.itens.filter(x=>x.id!==id);if(!S.itens.length)S.itens=[{id:uid(),nome:"",valor:"",quem:[]}];render();};
+      row.querySelectorAll(".rst-chip[data-p]").forEach(ch=>ch.onclick=()=>{
+        const p=ch.dataset.p;it.quem=it.quem.includes(p)?it.quem.filter(x=>x!==p):it.quem.concat([p]);render();});
+    });
+    $("#rst-add").onclick=()=>{S.itens.push({id:uid(),nome:"",valor:"",quem:[]});render();};
+    // gorjeta/imposto valores + unidade
+    const gv=$("#rst-gv");if(gv)gv.oninput=()=>{S.gorjVal=gv.value;liveTotals();};
+    const iv=$("#rst-iv");if(iv)iv.oninput=()=>{S.impVal=iv.value;liveTotals();};
+    $("#rst-gt").onclick=()=>{S.gorjTipo=S.gorjTipo==="pct"?"valor":"pct";render();};
+    $("#rst-it").onclick=()=>{S.impTipo=S.impTipo==="pct"?"valor":"pct";render();};
+    // pagadores: marcar/desmarcar e valor
+    $("#modal").querySelectorAll(".rst-chip[data-pag]").forEach(ch=>ch.onclick=()=>{
+      const p=ch.dataset.pag;
+      if(S.pagadores[p]!=null)delete S.pagadores[p];else S.pagadores[p]="";
+      render();});
+    $("#modal").querySelectorAll("[data-pagv]").forEach(inp=>inp.oninput=()=>{S.pagadores[inp.dataset.pagv]=inp.value;liveTotals();});
+    // recálculo leve dos totais sem re-render (mantém foco nos inputs)
+    function liveTotals(){
+      const R2=calc();
+      const cons=PEOPLE.filter(p=>R2.total[p]>0.005);
+      const box=$("#modal").querySelector(".rst-tot");
+      const grandEl=$("#modal").querySelector(".rest-grand");
+      if(grandEl)grandEl.textContent=money(R2.grand);
+      if(box)box.innerHTML=cons.map(p=>`<div class="rst-totrow"><span>${esc(p)}</span><b>${money(R2.total[p])}</b></div>`).join("")+
+        `<div class="rst-totrow rst-sub"><span>Subtotal ${money(R2.subtotal)} · gorjeta ${money(R2.gorj)} · imposto ${money(R2.imp)}</span></div>`;
+      // atualiza aviso de pagadores + estado do botão
+      const pag2=Object.keys(S.pagadores).filter(p=>parseMoney(S.pagadores[p])>0);
+      const soma2=pag2.reduce((a,p)=>a+parseMoney(S.pagadores[p]),0);
+      const dif2=Math.abs(soma2-R2.grand)>0.02;
+      const nota=$("#modal").querySelector("#rst-pagnota");
+      if(nota)nota.innerHTML=pag2.length?`Pagadores somam ${money(soma2)} de ${money(R2.grand)}${dif2?` <b style="color:var(--danger)">— confira, não fecha com o total</b>`:" ✓"}`:`Marque quem pagou e quanto cada um colocou.`;
+      const add2=$("#modal").querySelector("#rst-add-racha");
+      if(add2)add2.disabled=(!cons.length||!pag2.length||dif2);
+    }
+    const close=()=>{$("#modal").innerHTML="";};
+    $("#rst-close").onclick=()=>{_restState=null;close();};
+    $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget){/* não fecha à toa: pode perder dados */}};
+    const add=$("#rst-add-racha");
+    if(add)add.onclick=()=>{if(!add.disabled)adicionarAoRacha();};
+  }
+
+  // ---- gera as despesas no racha ----
+  function adicionarAoRacha(){
+    const R=calc();
+    const consumidores=PEOPLE.filter(p=>R.total[p]>0.005);
+    const pagPostos=Object.keys(S.pagadores).filter(p=>parseMoney(S.pagadores[p])>0);
+    const somaPag=pagPostos.reduce((a,p)=>a+parseMoney(S.pagadores[p]),0);
+    if(!consumidores.length||!pagPostos.length||Math.abs(somaPag-R.grand)>0.02){
+      toast("Confira itens e pagadores antes de adicionar");return;}
+    const cur=MOEDA_VIAGEM();
+    // quanto cada consumidor deve no total (consumo + rateio de gorjeta/imposto)
+    const deve={};consumidores.forEach(p=>deve[p]=R.total[p]);
+    // quanto cada pagador colocou
+    const posto={};pagPostos.forEach(p=>posto[p]=parseMoney(S.pagadores[p]));
+    // 1) cada pagador quita a própria parte primeiro (não vira dívida de ninguém)
+    pagPostos.forEach(p=>{if(deve[p]!=null){const usa=Math.min(posto[p],deve[p]);posto[p]-=usa;deve[p]-=usa;}});
+    // 2) crédito restante de cada pagador (o que pôs além da própria conta)
+    const credTot=pagPostos.reduce((a,p)=>a+Math.max(0,posto[p]),0);
+    const devedores=Object.keys(deve).filter(d=>deve[d]>0.005);
+    // 3) distribui cada dívida entre os pagadores com crédito, proporcional ao crédito
+    const despesas=[];const hoje=new Date().toISOString().slice(0,10);
+    devedores.forEach(d=>{
+      let restante=Math.round(deve[d]*100); // em centavos, pra fechar exato
+      const comCred=pagPostos.filter(p=>posto[p]>0.005);
+      comCred.forEach((p,idx)=>{
+        if(restante<=0)return;
+        const parcela=idx===comCred.length-1?restante:Math.min(restante,Math.round(deve[d]*100*(posto[p]/credTot)));
+        if(parcela>0){
+          despesas.push({id:uid(),desc:`Restaurante — ${d}`,valor:parcela/100,moeda:cur,pagou:p,entre:[d],data:hoje});
+          restante-=parcela;
+        }
+      });
+    });
+    if(!despesas.length){toast("Sem dívidas a lançar (cada um pagou a própria parte)");_restState=null;$("#modal").innerHTML="";return;}
+    vibrar(16);
+    saveDoc("racha",{despesas:(STATE.racha.despesas||[]).concat(despesas)});
+    _restState=null;$("#modal").innerHTML="";
+    const n=despesas.length;
+    toast(`${n} lançamento${n>1?"s":""} de restaurante no racha ✓`);
+  }
+
+  render();
 }
 
 /* ---- 10. COFRE (meta e poupança) ----------------------- */
@@ -1982,7 +2188,10 @@ function renderRacha(){
       <div class="disp money" style="font-size:22px;color:${Math.abs(meuC)<0.005?"var(--muted)":(meuC>0?"var(--danger)":"var(--ok)")}">${fmtMO(Math.abs(meuC))}</div></div>
   </div></div>
 
-  <button class="btn" id="dsadd" style="margin:14px 0 4px">+ Lançar despesa</button>
+  <div class="row" style="gap:8px;margin:14px 0 4px">
+    <button class="btn" id="dsadd" style="flex:1">+ Lançar despesa</button>
+    <button class="btn sec" id="dsrest" style="flex:1">🍽️ Dividir restaurante</button>
+  </div>
 
   <div class="dtwo" style="margin-top:8px">
   <div class="dcol">
@@ -2041,6 +2250,7 @@ function renderRacha(){
     if(!v.entre.length){toast("Escolha entre quem dividir");return false;}
     saveDoc("racha",{despesas:(STATE.racha.despesas||[]).concat([{id:uid(),desc:v.desc,valor:v.valor,moeda:v.moeda,pagou:v.pagou,entre:v.entre,data:v.data||hoje}])});
     toast("Despesa lançada");},"Lançar");
+  const drest=$("#dsrest");if(drest)drest.onclick=abrirRestaurante;
 
   $("#p-racha").querySelectorAll("[data-quit]").forEach(b=>b.onclick=()=>{
     const t=trs[Number(b.dataset.quit)];if(!t)return;
