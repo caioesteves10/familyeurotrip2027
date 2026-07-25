@@ -692,15 +692,17 @@ function saveLocal(){
 }
 async function saveDoc(id,obj){
   STATE[id]=Object.assign({},STATE[id],obj);
-  if(MOCK){saveLocal();renderAll();return;}
+  renderAll();
+  if(MOCK){saveLocal();return;}
   try{await FB.setDoc(FB.doc(db,NS.viagem,id),obj,{merge:true});}
-  catch(e){toast("Não deu para salvar");console.error(e);}
+  catch(e){console.error(e);toast("Erro ao salvar: "+String((e&&e.code)||(e&&e.message)||e).slice(0,60));}
 }
 async function savePessoa(nome,obj){
   STATE.pessoas[nome]=Object.assign({},STATE.pessoas[nome],obj);
-  if(MOCK){saveLocal();renderAll();return;}
+  renderAll();
+  if(MOCK){saveLocal();return;}
   try{await FB.setDoc(FB.doc(db,NS.pessoas,nome),obj,{merge:true});}
-  catch(e){toast("Não deu para salvar");console.error(e);}
+  catch(e){console.error(e);toast("Erro ao salvar: "+String((e&&e.code)||(e&&e.message)||e).slice(0,60));}
 }
 const meDoc=()=>STATE.pessoas[STATE.me]||{meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[]};
 const CAT_BASE=["Passagens","Hospedagem","Transporte","Passeios","Alimentação","Compras","Seguro","Reserva","Outros"];
