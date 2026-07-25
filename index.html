@@ -168,6 +168,8 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .rst-pags{display:flex;flex-direction:column;gap:7px}
 .rst-pagrow{display:flex;align-items:center;gap:9px}
 .rst-pagval{flex:1;min-width:0}
+.rst-totchk{flex:0 0 auto;display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}
+.rst-totchk input{width:15px;height:15px;accent-color:var(--navy);cursor:pointer;margin:0}
 .rst-actions{display:flex;gap:9px;margin-top:14px}
 .rst-actions .btn{flex:1}
 
@@ -1213,18 +1215,20 @@ function abrirRestaurante(){
       </div>
 
       <div class="rest-sec">Quanto cada um deve<span class="rest-grand">${money(R.grand)}</span></div>
-      ${consumidores.length?`<div class="rst-tot">${consumidores.map(p=>`<div class="rst-totrow">
+      <div id="rst-totwrap">${consumidores.length?`<div class="rst-tot">${consumidores.map(p=>`<div class="rst-totrow">
         <span>${esc(p)}</span>
         <b>${money(R.total[p])}</b></div>`).join("")}
         <div class="rst-totrow rst-sub"><span>Subtotal ${money(R.subtotal)} · gorjeta ${money(R.gorj)} · imposto ${money(R.imp)}</span></div>
-        </div>`:`<div class="note">Adicione itens e marque quem consumiu cada um.</div>`}
+        </div>`:`<div class="note">Adicione itens e marque quem consumiu cada um.</div>`}</div>
 
       <div class="rest-sec">Quem pagou?</div>
       <div class="rst-pags">${PEOPLE.map(p=>{
         const on=S.pagadores[p]!=null;
+        const isTotal=on&&Math.abs((parseMoney(S.pagadores[p])||-1)-R.grand)<0.005&&R.grand>0;
         return `<div class="rst-pagrow ${on?"on":""}">
           <span class="rst-chip ${on?"on":""}" data-pag="${esc(p)}">${esc(p)}</span>
-          ${on?`<input class="rst-pagval" data-pagv="${esc(p)}" inputmode="decimal" placeholder="quanto pôs" value="${esc(S.pagadores[p]||"")}">`:""}</div>`;}).join("")}</div>
+          ${on?`<input class="rst-pagval" data-pagv="${esc(p)}" inputmode="decimal" placeholder="quanto pôs" value="${esc(S.pagadores[p]||"")}">
+          <label class="rst-totchk"><input type="checkbox" data-pagtot="${esc(p)}" ${isTotal?"checked":""}>Total</label>`:""}</div>`;}).join("")}</div>
       ${pagPostos.length?`<div class="note" id="rst-pagnota" style="margin-top:6px">Pagadores somam ${money(somaPag)} de ${money(R.grand)}${difere?` <b style="color:var(--danger)">— confira, não fecha com o total</b>`:" ✓"}</div>`:`<div class="note" id="rst-pagnota" style="margin-top:6px">Marque quem pagou e quanto cada um colocou.</div>`}
 
       <div class="rst-actions">
@@ -1243,7 +1247,10 @@ function abrirRestaurante(){
       row.querySelectorAll("[data-f]").forEach(inp=>inp.oninput=()=>{it[inp.dataset.f]=inp.value;/* recalc leve */liveTotals();});
       row.querySelector(".rst-del").onclick=()=>{S.itens=S.itens.filter(x=>x.id!==id);if(!S.itens.length)S.itens=[{id:uid(),nome:"",valor:"",quem:[]}];render();};
       row.querySelectorAll(".rst-chip[data-p]").forEach(ch=>ch.onclick=()=>{
-        const p=ch.dataset.p;it.quem=it.quem.includes(p)?it.quem.filter(x=>x!==p):it.quem.concat([p]);render();});
+        const p=ch.dataset.p;
+        it.quem=it.quem.includes(p)?it.quem.filter(x=>x!==p):it.quem.concat([p]);
+        ch.classList.toggle("on",it.quem.includes(p)); // toggle visual sem re-render (evita piscada)
+        liveTotals();});
     });
     $("#rst-add").onclick=()=>{S.itens.push({id:uid(),nome:"",valor:"",quem:[]});render();};
     // gorjeta/imposto valores + unidade
@@ -1256,16 +1263,28 @@ function abrirRestaurante(){
       const p=ch.dataset.pag;
       if(S.pagadores[p]!=null)delete S.pagadores[p];else S.pagadores[p]="";
       render();});
-    $("#modal").querySelectorAll("[data-pagv]").forEach(inp=>inp.oninput=()=>{S.pagadores[inp.dataset.pagv]=inp.value;liveTotals();});
+    $("#modal").querySelectorAll("[data-pagv]").forEach(inp=>inp.oninput=()=>{S.pagadores[inp.dataset.pagv]=inp.value;
+      // digitar manualmente desmarca o "Total" se não bater mais
+      const chk=$("#modal").querySelector(`[data-pagtot="${inp.dataset.pagv.replace(/"/g,'\\"')}"]`);
+      if(chk){const R3=calc();chk.checked=Math.abs((parseMoney(inp.value)||-1)-R3.grand)<0.005&&R3.grand>0;}
+      liveTotals();});
+    // checkbox "Total": preenche o valor do pagador com o total da conta
+    $("#modal").querySelectorAll("[data-pagtot]").forEach(chk=>chk.onchange=()=>{
+      const p=chk.dataset.pagtot;const R3=calc();
+      S.pagadores[p]=chk.checked?String(R3.grand.toFixed(2)).replace(".",","):"";
+      const inp=$("#modal").querySelector(`[data-pagv="${p.replace(/"/g,'\\"')}"]`);
+      if(inp)inp.value=S.pagadores[p];
+      liveTotals();});
     // recálculo leve dos totais sem re-render (mantém foco nos inputs)
     function liveTotals(){
       const R2=calc();
       const cons=PEOPLE.filter(p=>R2.total[p]>0.005);
-      const box=$("#modal").querySelector(".rst-tot");
+      const wrap=$("#modal").querySelector("#rst-totwrap");
       const grandEl=$("#modal").querySelector(".rest-grand");
       if(grandEl)grandEl.textContent=money(R2.grand);
-      if(box)box.innerHTML=cons.map(p=>`<div class="rst-totrow"><span>${esc(p)}</span><b>${money(R2.total[p])}</b></div>`).join("")+
-        `<div class="rst-totrow rst-sub"><span>Subtotal ${money(R2.subtotal)} · gorjeta ${money(R2.gorj)} · imposto ${money(R2.imp)}</span></div>`;
+      if(wrap)wrap.innerHTML=cons.length?`<div class="rst-tot">${cons.map(p=>`<div class="rst-totrow"><span>${esc(p)}</span><b>${money(R2.total[p])}</b></div>`).join("")}`+
+        `<div class="rst-totrow rst-sub"><span>Subtotal ${money(R2.subtotal)} · gorjeta ${money(R2.gorj)} · imposto ${money(R2.imp)}</span></div></div>`:
+        `<div class="note">Adicione itens e marque quem consumiu cada um.</div>`;
       // atualiza aviso de pagadores + estado do botão
       const pag2=Object.keys(S.pagadores).filter(p=>parseMoney(S.pagadores[p])>0);
       const soma2=pag2.reduce((a,p)=>a+parseMoney(S.pagadores[p]),0);
@@ -2192,8 +2211,8 @@ function renderRacha(){
   </div></div>
 
   <div class="row" style="gap:8px;margin:14px 0 4px">
-    <button class="btn" id="dsadd" style="flex:1">+ Lançar despesa</button>
-    <button class="btn navy" id="dsrest" style="flex:1"><span class="bic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 4 0V3"/><path d="M8 10v11"/><path d="M17 3c-1.5 0-3 1.8-3 5 0 2.5 1 3.6 2 3.9V21"/></svg></span>Dividir restaurante</button>
+    <button class="btn" id="dsadd" style="flex:1 1 0;min-width:0;white-space:nowrap">+ Lançar despesa</button>
+    <button class="btn navy" id="dsrest" style="flex:1 1 0;min-width:0;white-space:nowrap"><span class="bic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2 2 0 0 0 4 0V3"/><path d="M8 10v11"/><path d="M17 3c-1.5 0-3 1.8-3 5 0 2.5 1 3.6 2 3.9V21"/></svg></span>Dividir restaurante</button>
   </div>
 
   <div class="dtwo" style="margin-top:8px">
