@@ -141,6 +141,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--panel);
  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);
  padding:7px 4px calc(6px + env(safe-area-inset-bottom));display:flex;max-width:520px;margin:0 auto}
+.nav .navsum{display:none}
 .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 1px;
  color:var(--dim);font-size:8.8px;font-weight:700;letter-spacing:0;cursor:pointer;border-radius:10px;white-space:nowrap}
 .nav div .ic{width:23px;height:23px;display:flex;align-items:center;justify-content:center}
@@ -363,10 +364,42 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
   /* grades de 2 colunas para blocos densos (custos/racha) */
   .dtwo{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
   .dcol{display:flex;flex-direction:column}
+  /* (2) roteiro em 2 colunas no desktop (masonry via CSS columns) */
+  .daygrid{column-count:2;column-gap:16px}
+  .daygrid .day{break-inside:avoid;margin-bottom:14px}
+
+  /* (1) resumo fixo no rodapé da sidebar */
+  .nav .navsum{display:block;margin-top:auto;padding:14px 12px 4px;border-top:1px solid var(--line);flex:0 0 auto}
+  .navsum-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);font-weight:700}
+  .navsum-row b{color:var(--navy);font-size:13px}
+  .navsum-bar{height:6px;border-radius:99px;background:var(--panel2);overflow:hidden;margin-top:6px}
+  .navsum-bar i{display:block;height:100%;background:var(--orange);border-radius:99px;transition:width .5s}
+  .nav{display:flex}
+
+  /* (5) botões de ação (editar/excluir) aparecem só no hover da linha */
+  .li .x,.tr .x{opacity:0;transition:opacity .15s}
+  .li:hover .x,.tr:hover .x,.li:focus-within .x,.tr:focus-within .x{opacity:1}
+
+  /* (7) modal vira painel lateral deslizando da direita */
+  .modal{align-items:stretch;justify-content:flex-end}
+  .modal .box{max-width:420px;width:420px;height:100vh;max-height:100vh;border-radius:0;
+    animation:slideIn .26s cubic-bezier(.2,.7,.3,1);overflow-y:auto;
+    display:flex;flex-direction:column;justify-content:flex-start;padding-top:26px}
+  @keyframes slideIn{from{transform:translateX(30px);opacity:.4}to{transform:none;opacity:1}}
 }
 @media (min-width:1280px){
   .wrap{max-width:1120px}
 }
+/* (6) tooltips informativos — funcionam em qualquer largura, naturais no desktop */
+.hint{position:relative;border-bottom:1px dotted currentColor;cursor:help}
+.hint::after{content:attr(data-hint);position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%) translateY(4px);
+ background:var(--navy);color:#fff;font-size:11.5px;font-weight:600;line-height:1.4;padding:7px 10px;border-radius:9px;
+ width:max-content;max-width:220px;white-space:normal;text-align:left;
+ opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:60;box-shadow:var(--shadowlg)}
+.hint::before{content:"";position:absolute;left:50%;bottom:calc(100% + 3px);transform:translateX(-50%);
+ border:5px solid transparent;border-top-color:var(--navy);opacity:0;transition:opacity .15s;z-index:60}
+.hint:hover::after,.hint:focus::after{opacity:1;transform:translateX(-50%) translateY(0)}
+.hint:hover::before,.hint:focus::before{opacity:1}
 
 </style>
 </head>
@@ -881,11 +914,24 @@ function buildNav(){
   if(isAdmin())t.push(["admin","Admin"]);
   if(!t.some(x=>x[0]===curTab))curTab=t[0][0];
   $("#nav").innerHTML=t.map(x=>`<div data-t="${x[0]}" class="${x[0]===curTab?"on":""}" role="button" tabindex="0">
-    <span class="ic">${svgIcon(x[0])}</span><span>${x[1]}</span><span class="navdot"></span></div>`).join("");
+    <span class="ic">${svgIcon(x[0])}</span><span>${x[1]}</span><span class="navdot"></span></div>`).join("")+
+    navResumo();
   $("#nav").querySelectorAll("div[data-t]").forEach(el=>{
     el.onclick=()=>show(el.dataset.t);
     el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();show(el.dataset.t);}};});
   $("#adminkey").classList.toggle("on",isAdmin());
+}
+/* resumo fixo no rodapé da sidebar (só aparece no desktop, via CSS) */
+function navResumo(){
+  const me=STATE.me;if(!me)return "";
+  const meta=metaDe(me),g=guardado(me),pct=meta?clamp(g/meta*100,0,100):0;
+  const dias=daysTo(STATE.config.inicio);
+  const diasTxt=dias>0?`${dias} dias`:(daysTo(STATE.config.fim)>=0?"em viagem":"voltamos");
+  return `<div class="navsum">
+    <div class="navsum-row"><span>Minha meta</span><b>${Math.round(pct)}%</b></div>
+    <div class="navsum-bar"><i style="width:${pct}%"></i></div>
+    <div class="navsum-row" style="margin-top:9px"><span>Para a viagem</span><b>${diasTxt}</b></div>
+  </div>`;
 }
 function applyTab(){
   $$("#nav div[data-t]").forEach(e=>e.classList.toggle("on",e.dataset.t===curTab));
@@ -1342,7 +1388,7 @@ function renderCustos(){
     <div class="dcol">
     <div class="sect" style="margin-top:0">Total por pessoa<span class="r">o plano de cada um</span></div>
     <div class="card">
-      <table class="tb"><thead><tr><th>Pessoa</th><th>Meta</th><th>Passagem</th><th>Total</th></tr></thead><tbody>
+      <table class="tb"><thead><tr><th>Pessoa</th><th><span class="hint" data-hint="O que precisa estar guardado antes de embarcar.">Meta</span></th><th><span class="hint" data-hint="Passagem aérea — fica fora da meta porque vai parcelada no cartão.">Passagem</span></th><th><span class="hint" data-hint="Custo real total da viagem para essa pessoa (meta + passagem).">Total</span></th></tr></thead><tbody>
       ${PEOPLE.map(p=>`<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(orcamentoDe(p))}</td>
         <td class="money" style="color:var(--muted)">${fmt(foraDaMeta(p))}</td><td class="money"><b>${fmt(planoDe(p))}</b></td></tr>`).join("")}
       </tbody><tfoot><tr><td>Total</td><td class="money">${fmt(totalMeta()+totPess)}</td>
@@ -1525,6 +1571,7 @@ function renderRoteiro(){
     ${(diaHoje.itens||[]).length?(diaHoje.itens||[]).map(a=>`<div class="hoje-act"><b>${esc(a.hora||"—")}</b> ${esc(a.titulo)}</div>`).join(""):'<div class="hoje-act" style="opacity:.8">Dia livre — aproveitem!</div>'}
   </div>`:""}
   <div class="searchbar"><input id="rotbusca" placeholder="Buscar no roteiro…" value="${esc(roteiroBusca)}">${roteiroBusca?`<button id="rotlimpa" aria-label="Limpar">✕</button>`:""}</div>
+  <div class="daygrid">
   ${dias.length?dias.map(d=>{
     const c=cityOf(d.cidade);
     return `<div class="day ${esc(d.cidade)}"><div class="dot"></div>
@@ -1538,6 +1585,7 @@ function renderRoteiro(){
         ${adm?`<button class="x" data-adel="${d.id}|${a.id}" aria-label="Excluir">✕</button>`:""}</div>`).join("")}
       ${adm?`<button class="btn gh sm" data-aadd="${d.id}" style="margin:2px 0 4px">+ atividade</button>`:""}
     </div>`;}).join(""):'<div class="empty">Roteiro vazio.<br>O admin monta os dias por aqui.</div>'}
+  </div>
   ${adm?'<button class="btn sec" id="dayadd" style="margin-top:8px">+ Novo dia</button>':
     '<div class="note" style="text-align:center">Sugestão de passeio? Manda pro Caio incluir.</div>'}`;
 
@@ -1794,7 +1842,9 @@ function renderRacha(){
 
   <button class="btn" id="dsadd">+ Lançar despesa</button>
 
-  <div class="sect">Acerto final<span class="r">${trs.length?`<span class="lnk" id="rachashare">compartilhar</span>`:trs.length+" transferências"}</span></div>
+  <div class="dtwo">
+  <div class="dcol">
+  <div class="sect" style="margin-top:0">Acerto final<span class="r">${trs.length?`<span class="lnk" id="rachashare">compartilhar</span>`:trs.length+" transferências"}</span></div>
   ${trs.length?trs.map((t,i)=>`<div class="tr">
       <div class="who">${esc(t.de)}<span class="ar">→</span>${esc(t.para)}</div>
       <div class="v money">${fmtMO(t.v/100)}</div>
@@ -1802,14 +1852,17 @@ function renderRacha(){
     `<div class="note">Tudo em ${MOEDA_VIAGEM()}, para acertarem na moeda corrente no fim da viagem. Dívidas já foram cruzadas: cada um paga o mínimo de vezes possível. "Quitar" registra a transferência como feita.</div>`:
     (totalG?'<div class="okbox">Tudo acertado. Ninguém deve nada a ninguém.</div>':
     '<div class="empty">Sem despesas ainda.<br>Durante a viagem, lance aqui quem pagou o quê.</div>')}
-
-  <div class="sect">Saldo de cada um</div>
+  </div>
+  <div class="dcol">
+  <div class="sect" style="margin-top:0">Saldo de cada um</div>
   <div class="card">
     ${PEOPLE.map(p=>{const v=(bal[p]||0)/100,w=Math.abs(bal[p]||0)/maxAbs*100;
       return `<div class="bal"><div class="n ${p===me?"":""}" style="${p===me?"color:var(--par)":""}">${esc(p)}</div>
         <div class="barmini"><i class="${v<0?"neg":""}" style="width:${w}%;${v<0?"right:0":"left:0"}"></i></div>
         <div class="v ${v>=0?"pos":"neg"} money">${v>=0?"+":"−"}${fmtMO(Math.abs(v))}</div></div>`;}).join("")}
     <div class="note">Positivo = já pagou mais do que consumiu.</div>
+  </div>
+  </div>
   </div>
 
   <div class="sect">Despesas<span class="r">${desp.length}</span></div>
