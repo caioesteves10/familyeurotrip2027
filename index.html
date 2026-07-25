@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#EEF2F8">
-<title>EuroTrip 2027 · Paris · Munique · Berlim</title>
+<title>Resenha Trip 2027 · Paris · Munique · Berlim</title>
 <link rel="icon" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="EuroTrip">
+<meta name="apple-mobile-web-app-title" content="Resenha Trip">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -81,6 +81,13 @@ a{color:var(--mun)}
 .strip .cd .n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--par)}
 .strip .cd .u{font-size:9.5px;letter-spacing:.16em;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
 .perf{height:1px;margin:11px -15px 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px)}
+.fxconv{display:inline-flex;align-items:center;gap:7px;margin-top:11px;
+ background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.28);
+ border-radius:99px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;
+ transition:background .15s,transform .08s}
+.fxconv:hover{background:rgba(255,255,255,.2)}
+.fxconv:active{transform:scale(.96)}
+.fxconv svg{color:var(--orange)}
 
 /* ---------- painéis genéricos ---------- */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:9px;box-shadow:var(--shadow)}
@@ -221,6 +228,12 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .tb tfoot td{border-top:1px solid var(--line2);font-weight:800}
 
 /* roteiro */
+.hoje-card{background:var(--navy);color:#fff;border-radius:16px;padding:15px 16px;margin-bottom:10px;box-shadow:var(--shadowlg)}
+.hoje-act{font-size:13.5px;padding:4px 0;border-top:1px solid rgba(255,255,255,.14)}
+.hoje-act:first-of-type{border-top:none}
+.searchbar{position:relative;margin-bottom:10px}
+.searchbar input{width:100%;padding-right:38px}
+.searchbar button{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:99px;width:26px;height:26px;cursor:pointer}
 .day{position:relative;padding-left:26px;margin-bottom:14px}
 .day::before{content:"";position:absolute;left:7px;top:20px;bottom:-14px;width:2px;background:var(--line)}
 .day:last-child::before{display:none}
@@ -254,6 +267,15 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 /* gráfico */
 .chart{width:100%;height:104px;display:block;margin-top:4px}
 .lg{display:flex;gap:14px;font-size:10.5px;color:var(--dim);font-weight:700;margin-top:6px;flex-wrap:wrap}
+.chartwrap{position:relative}
+.chartwrap svg{height:190px}
+.chart-tip{position:absolute;top:6px;pointer-events:none;background:var(--panel);border:1px solid var(--line2);
+ border-radius:11px;padding:8px 10px;box-shadow:var(--shadowlg);font-size:11.5px;min-width:132px;transition:opacity .12s;z-index:5}
+.chart-tip .tt-h{font-weight:800;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+.chart-tip .tt-r{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 0}
+.chart-tip .tt-r span{display:flex;align-items:center;gap:6px;color:var(--muted);font-weight:600}
+.chart-tip .tt-r i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.chart-tip .tt-r b{color:var(--text);font-weight:700}
 .lg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 
 /* login */
@@ -276,6 +298,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .modal .box{background:var(--bg);border:1px solid var(--line2);border-top-left-radius:20px;border-top-right-radius:20px;
  width:100%;max-width:520px;padding:16px 16px calc(20px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto}
 .modal .box h3{font-family:'Bricolage Grotesque',Inter,sans-serif;font-size:19px;margin-bottom:12px}
+.pf{width:100%;margin-bottom:8px;text-align:center;justify-content:center}
 .adm-scroll{max-height:46vh;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:10px}
 .btn,.chip,.seg div,.pbtn,.iconbtn,.nav div,.tick,.x{transition:transform .08s ease, background .15s ease, border-color .15s ease, color .15s ease}
 .btn:active,.pbtn:active{transform:scale(.975)}
@@ -286,6 +309,18 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .toast{animation:none}
 .confetti{position:fixed;inset:0;pointer-events:none;z-index:95;overflow:hidden}
 .confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall 1.9s cubic-bezier(.3,.6,.5,1) forwards}
+#ptr{position:fixed;top:-4px;left:50%;margin-left:-18px;width:36px;height:36px;border-radius:50%;
+ background:var(--panel);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;
+ z-index:60;opacity:0;transition:opacity .2s ease;pointer-events:none}
+.sk{background:linear-gradient(90deg,var(--panel2) 25%,var(--line) 37%,var(--panel2) 63%);background-size:400% 100%;
+ animation:shimmer 1.3s ease infinite;border-radius:8px;margin-bottom:10px}
+.sk-lg{height:34px;width:55%}.sk-md{height:16px;width:75%}.sk-sm{height:14px;width:100%}
+.sk-row{display:flex;gap:10px}.sk-kpi{height:52px;flex:1}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+#ptr .ptrspin{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--line2);border-top-color:var(--orange);transition:transform .2s}
+#ptr.ready .ptrspin{border-top-color:var(--ok)}
+#ptr.spin .ptrspin{animation:ptrsp .7s linear infinite}
+@keyframes ptrsp{to{transform:rotate(360deg)}}
 @keyframes fall{to{top:105%;opacity:.2}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 :focus-visible{outline:2px solid var(--mun);outline-offset:2px}
@@ -298,8 +333,8 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
     flex-direction:column;align-items:stretch;justify-content:flex-start;
     border-top:none;border-right:1px solid var(--line);padding:22px 14px;gap:5px;
     backdrop-filter:none;background:var(--panel);max-width:none;margin:0;overflow-y:auto}
-  .nav::before{content:"EuroTrip";display:block;font-family:'Bricolage Grotesque',Inter,sans-serif;
-    font-weight:800;font-size:23px;letter-spacing:-.02em;color:var(--navy);padding:4px 12px 18px}
+  .nav::before{content:"Resenha Trip";display:block;font-family:'Bricolage Grotesque',Inter,sans-serif;
+    font-weight:800;font-size:20px;letter-spacing:-.02em;color:var(--navy);padding:4px 12px 18px;line-height:1.05}
   .nav div{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:13px;padding:12px 14px;
     font-size:14.5px;letter-spacing:0;border-radius:11px;white-space:nowrap}
   .nav div .ic,.nav div .ic svg{width:21px;height:21px}
@@ -319,6 +354,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
   .cofre-top .cofre-month{display:flex;flex-direction:column}
   .cofre-top .cofre-month .card{margin-bottom:0;flex:1}
   .cofre-top .sect{margin-top:0}
+  .chartwrap svg{height:260px}
   .modal{align-items:center}
   .modal .box{max-width:460px;border-radius:20px}
   .seg{max-width:100%}
@@ -339,7 +375,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 <!-- LOGIN -->
 <div id="login" class="login hidden">
   <div class="kicker" style="text-align:center">Paris · Munique · Berlim · out 2027</div>
-  <div class="disp">Euro<br>Trip</div>
+  <div class="disp">Resenha<br>Trip</div>
   <div class="ll">Escolha seu nome e digite sua senha</div>
   <div id="pgrid" class="pgrid"></div>
   <div class="pininp"><input id="pin" type="password" autocomplete="current-password" placeholder="senha" aria-label="Senha"></div>
@@ -361,10 +397,14 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
     <div class="strip">
       <div class="cd"><div class="n" id="cdn">—</div><div class="u" id="cdu">dias</div><span id="weekchip" class="wkchip"></span></div>
       <div class="route" id="route">—</div>
-      <h1 class="disp" id="tripname">EuroTrip 2027</h1>
+      <h1 class="disp" id="tripname">Resenha Trip 2027</h1>
       <div class="when" id="tripwhen">—</div>
       <div class="perf"></div>
       <div class="route" style="margin-top:11px;font-size:11.5px" id="fxline">—</div>
+      <button id="fxconv" class="fxconv" type="button">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h14l-3-3M17 14H3l3 3"/></svg>
+        <span>Simular conversão</span>
+      </button>
     </div>
 
     <div id="offbar" class="warnbox hidden"></div>
@@ -418,7 +458,7 @@ const DATA={
   adminPin:"2027",
   seed:{
     config:{
-      nome:"EuroTrip 2027", tagline:"Viagem Esteves & Bastos",
+      nome:"Resenha Trip 2027", tagline:"Viagem Esteves & Bastos",
       inicio:"2027-10-08", fim:"2027-10-20",
       moeda:"BRL", moedaViagem:"EUR", inicioPoupanca:"2026-08", fx:{EUR:6.20,USD:5.45},
       cidades:[
@@ -544,7 +584,7 @@ const checarAdmin=v=>conferir(ADMIN_HASH,v,ADMIN_PIN);
 
 /* ---- 3. ESTADO ----------------------------------------- */
 let db=null, FB=null, MOCK=false;
-const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur"};
+const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur",csub:"tr27_csub"};
 const STATE={
   config:JSON.parse(JSON.stringify(SEED.config)),
   roteiro:JSON.parse(JSON.stringify(SEED.roteiro)),
@@ -568,6 +608,7 @@ function applyTheme(t){
 function toggleTheme(){applyTheme((localStorage.getItem("tr27_theme")==="dark")?"light":"dark");}
 applyTheme(localStorage.getItem("tr27_theme")||"light");
 const $=s=>document.querySelector(s);
+const vibrar=(ms=12)=>{try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}};
 const $$=s=>Array.from(document.querySelectorAll(s));
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -603,10 +644,10 @@ function rate(m){
   const fx=STATE.config.fx||{};return Number(fx[m])||1;
 }
 /* cotação comercial do dia, com cache de 6h e duas fontes */
-async function carregarFX(){
+async function carregarFX(force){
   try{
     const c=JSON.parse(localStorage.getItem("tr27_fx")||"null");
-    if(c&&c.EUR>0&&Date.now()-c.at<6*3600*1000){FXLIVE=c;renderAll();return;}
+    if(!force&&c&&c.EUR>0&&Date.now()-c.at<6*3600*1000){FXLIVE=c;renderAll();return;}
   }catch(e){}
   const fontes=[
     async()=>{const r=await fetch("https://economia.awesomeapi.com.br/json/last/EUR-BRL,USD-BRL");
@@ -782,10 +823,36 @@ $("#enter").onclick=async()=>{
   STATE.me=pick;localStorage.setItem(LS.me,pick);enterApp();
 };
 $("#pin").addEventListener("keydown",e=>{if(e.key==="Enter")$("#enter").click();});
-$("#logout").onclick=()=>{localStorage.removeItem(LS.me);STATE.me=null;showLogin();};
+$("#logout").onclick=(e)=>{e.stopPropagation();abrirPerfil();};
+function abrirPerfil(){
+  const escuro=localStorage.getItem("tr27_theme")==="dark";
+  $("#modal").innerHTML=`<div class="modal"><div class="box">
+    <h3>${esc(STATE.me||"")}</h3>
+    <button class="btn sec pf" id="pf-tema">${escuro?"☀️ Tema claro":"🌙 Tema escuro"}</button>
+    <button class="btn sec pf" id="pf-meta">🎯 Minha meta de poupança</button>
+    <button class="btn sec pf" id="pf-moeda">💱 Moeda: ${STATE.cur}</button>
+    <button class="btn gh pf" id="pf-sair" style="color:var(--danger)">Trocar de usuário</button>
+    <button class="btn gh pf" id="pf-fechar">Fechar</button>
+  </div></div>`;
+  const close=()=>{$("#modal").innerHTML="";};
+  $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)close();};
+  $("#pf-fechar").onclick=close;
+  $("#pf-tema").onclick=()=>{toggleTheme();close();};
+  $("#pf-sair").onclick=()=>{close();localStorage.removeItem(LS.me);STATE.me=null;showLogin();};
+  $("#pf-moeda").onclick=()=>{const o=["BRL","USD","EUR"];STATE.cur=o[(o.indexOf(STATE.cur)+1)%3];localStorage.setItem(LS.cur,STATE.cur);close();renderAll();};
+  $("#pf-meta").onclick=()=>{close();show("cofre");renderCofre();setTimeout(()=>{const m=$("#metaedit");if(m)m.click();},80);};
+}
+let _primeiraCarga=true;
+function skeleton(){
+  return `<div class="card"><div class="sk sk-lg"></div><div class="sk sk-md"></div><div class="sk-row"><div class="sk sk-kpi"></div><div class="sk sk-kpi"></div></div></div>
+  <div class="card"><div class="sk sk-md"></div><div class="sk sk-sm"></div></div>
+  <div class="card"><div class="sk sk-sm"></div><div class="sk sk-sm"></div><div class="sk sk-sm"></div></div>`;
+}
 function enterApp(){
   $("#login").classList.add("hidden");$("#app").classList.remove("hidden");$("#nav").classList.remove("hidden");
   if(emViagem()&&!sessionStorage.getItem("tr27_via")){curTab="roteiro";try{sessionStorage.setItem("tr27_via","1");}catch(e){}}
+  // mostra esqueleto enquanto o banco não respondeu (só quando online e sem dados ainda)
+  if(_primeiraCarga&&!MOCK){$$(".panel-v").forEach(p=>p.innerHTML=skeleton());applyTab();}
   $("#mename").textContent=STATE.me;
   const h=new Date().getHours(),sd=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   const tl=$("#tagline");if(tl&&STATE.me)tl.textContent=sd+", "+STATE.me;
@@ -826,7 +893,22 @@ function applyTab(){
 }
 function show(t){
   if(t!==curTab)window.scrollTo(0,0);
+  const changed=t!==curTab;
   curTab=t;localStorage.setItem(LS.tab,t);applyTab();
+  if(changed)animarNumeros();
+}
+/* (6) anima os números .money.big / .disp para "contar" até o valor */
+function animarNumeros(){
+  if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches)return;
+  $$(".panel-v.on .count").forEach(el=>{
+    const alvo=parseFloat(el.dataset.count);if(isNaN(alvo))return;
+    const dur=520,t0=performance.now(),suf=el.dataset.suf||"";
+    const pre=el.dataset.pre||"";
+    const fmtN=v=>pre+new Intl.NumberFormat("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}).format(Math.round(v))+suf;
+    function step(t){const p=Math.min(1,(t-t0)/dur);const e=1-Math.pow(1-p,3);
+      el.textContent=fmtN(alvo*e);if(p<1)requestAnimationFrame(step);else el.textContent=el.dataset.final||fmtN(alvo);}
+    requestAnimationFrame(step);
+  });
 }
 $("#themebtn").onclick=toggleTheme;
 $("#adminkey").onclick=()=>{show("admin");renderAdmin();if(!isAdmin())setTimeout(()=>{const i=$("#apin");if(i)i.focus();},60);};
@@ -881,6 +963,7 @@ function renderAll(){
   const sy=window.scrollY;
   renderHeader();buildNav();
   renderCofre();renderCustos();renderRoteiro();renderCompras();renderCheck();renderRacha();renderAdmin();
+  _primeiraCarga=false;
   applyTab();
   window.scrollTo(0,sy);
   if(aid){const el=document.getElementById(aid);if(el&&el.focus){try{el.focus();el.setSelectionRange(asel,asel);}catch(e){}}}
@@ -890,7 +973,7 @@ function renderHeader(){
   const c=STATE.config,cs=c.cidades||[];
   /* legenda do topo agora é saudação; mantém no renderHeader só se vazio */
   if(!STATE.me)$("#tagline").textContent=c.tagline||"Viagem Esteves & Bastos";
-  $("#tripname").textContent=c.nome||"EuroTrip 2027";
+  $("#tripname").textContent=c.nome||"Resenha Trip 2027";
   $("#route").innerHTML=cs.map(x=>`<span>${esc(x.n)}</span>`).join('<span class="ar">→</span>')||"—";
   const d1=ymd(c.inicio),d2=ymd(c.fim),dias=Math.round((d2-d1)/86400000)+1;
   $("#tripwhen").textContent=`${d1.getDate()} a ${d2.getDate()} de ${["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][d2.getMonth()]} de ${d2.getFullYear()} · ${dias} dias`;
@@ -908,14 +991,15 @@ function renderHeader(){
   const viva=!!FXLIVE;
   const hora=viva?new Date(FXLIVE.at).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
   $("#fxline").innerHTML=
-    `<span id="fxcalc" style="color:var(--dim);cursor:pointer">€1 = ${fmtIn(rate("EUR"),"BRL")} · €1 = ${fmtIn(rate("EUR")/rate("USD"),"USD")}`+
-    (viva?` <span style="color:var(--ok)">• ${esc(FXLIVE.src)} ${esc(hora)}</span>`:` <span style="color:var(--warn)">• taxa fixa</span>`)+` ⇄</span>`+
+    `<span style="color:var(--dim)">€1 = ${fmtIn(rate("EUR"),"BRL")} · €1 = ${fmtIn(rate("EUR")/rate("USD"),"USD")}`+
+    (viva?` <span style="color:var(--ok)">• ${esc(FXLIVE.src)} ${esc(hora)}</span>`:` <span style="color:var(--warn)">• taxa fixa</span>`)+`</span>`+
     `<span style="margin-left:auto;display:flex;gap:4px">`+
       ["BRL","USD","EUR"].map(m=>`<span class="pill ${STATE.cur===m?"ok":""}" data-cur="${m}" style="cursor:pointer">${m}</span>`).join("")+
     `</span>`;
+  const cbtn=$("#fxconv");
+  if(cbtn)cbtn.onclick=abrirCambio;
   $("#fxline").querySelectorAll("[data-cur]").forEach(el=>el.onclick=()=>{
     STATE.cur=el.dataset.cur;localStorage.setItem(LS.cur,STATE.cur);renderAll();});
-  const fc=$("#fxcalc");if(fc)fc.onclick=abrirCambio;
   $("#foot").textContent=c.nota||"";
 }
 
@@ -996,19 +1080,67 @@ function grupoLinha(){
     let run=0;acc[p]=meses.map(k=>{run+=(bym[k]||0);return run;});
   });
   const maxV=Math.max(1,...PEOPLE.map(p=>acc[p][acc[p].length-1]));
-  const W=300,H=120,pl=6,pr=6,pt=8,pb=16,n=meses.length;
+  const W=320,H=180,pl=8,pr=8,pt=12,pb=22,n=meses.length;
   const x=i=>pl+(i/(n-1))*(W-pl-pr);
   const y=v=>H-pb-(v/maxV)*(H-pt-pb);
+  // grades horizontais suaves
+  const grid=[0,.5,1].map(f=>`<line x1="${pl}" y1="${(pt+(H-pt-pb)*(1-f)).toFixed(1)}" x2="${W-pr}" y2="${(pt+(H-pt-pb)*(1-f)).toFixed(1)}" stroke="var(--line)" stroke-width="0.6"/>`).join("");
   const linhas=PEOPLE.map(p=>{
     const pts=acc[p].map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
     const last=acc[p][acc[p].length-1];
-    return `<polyline points="${pts}" fill="none" stroke="${CORPESSOA[p]}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`+
-           `<circle cx="${x(n-1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="2.6" fill="${CORPESSOA[p]}"/>`;
+    return `<polyline points="${pts}" fill="none" stroke="${CORPESSOA[p]}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`+
+           `<circle cx="${x(n-1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3" fill="${CORPESSOA[p]}"/>`;
   }).join("");
-  const labs=meses.map((k,i)=>(n>8&&i%2)?"":`<text x="${x(i).toFixed(1)}" y="${H-4}" fill="var(--dim)" font-size="7" text-anchor="middle" font-family="Inter">${monthLabel(k)}</text>`).join("");
+  const labs=meses.map((k,i)=>(n>7&&i%2)?"":`<text x="${x(i).toFixed(1)}" y="${H-6}" fill="var(--dim)" font-size="8.5" text-anchor="middle" font-family="Inter">${monthLabel(k)}</text>`).join("");
   const leg=PEOPLE.map(p=>`<span style="white-space:nowrap"><i style="background:${CORPESSOA[p]}"></i>${esc(p)}</span>`).join("");
-  return `<div class="card"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:130px;display:block">${labs}${linhas}</svg>
+  // dados para interação (tooltip): guardo tudo em JSON no elemento
+  const dados={meses:meses,people:PEOPLE,cor:PEOPLE.map(p=>CORPESSOA[p]),acc:PEOPLE.map(p=>acc[p]),cur:STATE.cur||"BRL",
+    W:W,H:H,pl:pl,pr:pr,pt:pt,pb:pb,maxV:maxV,rate:{}};
+  ["BRL","USD","EUR"].forEach(m=>dados.rate[m]=rate(m));
+  return `<div class="card"><div class="chartwrap">
+    <svg id="glchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;display:block;touch-action:pan-y">
+      ${grid}${labs}${linhas}
+      <line id="glcursor" x1="0" y1="${pt}" x2="0" y2="${H-pb}" stroke="var(--muted)" stroke-width="0.8" stroke-dasharray="3 3" style="opacity:0"/>
+      <g id="gldots"></g>
+    </svg>
+    <div id="gltip" class="chart-tip" style="opacity:0"></div>
+    <div class="glmeta" style="display:none">${esc(JSON.stringify(dados))}</div>
+  </div>
     <div class="lg">${leg}</div></div>`;
+}
+/* interação do gráfico de linha: mostra valores por mês ao passar o mouse / arrastar o dedo */
+function wireChart(){
+  const svg=document.getElementById("glchart");if(!svg||!svg.parentElement)return;
+  const metaEl=svg.parentElement.querySelector&&svg.parentElement.querySelector(".glmeta");if(!metaEl)return;
+  let D;try{D=JSON.parse(metaEl.textContent);}catch(e){return;}
+  const tip=document.getElementById("gltip"),cur=document.getElementById("glcursor"),dots=document.getElementById("gldots");
+  const xAt=i=>D.pl+(i/(D.meses.length-1))*(D.W-D.pl-D.pr);
+  const yAt=v=>D.H-D.pb-(v/D.maxV)*(D.H-D.pt-D.pb);
+  const conv=(brl)=>{const r=D.rate[D.cur]||1;return D.cur==="BRL"?brl:brl/r;};
+  const money=(brl)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:D.cur||"BRL",maximumFractionDigits:0}).format(conv(brl));
+  function show(clientX){
+    const box=svg.getBoundingClientRect();
+    const rel=(clientX-box.left)/box.width; // 0..1
+    let i=Math.round(rel*(D.meses.length-1));i=Math.max(0,Math.min(D.meses.length-1,i));
+    const px=xAt(i);
+    cur.setAttribute("x1",px);cur.setAttribute("x2",px);cur.style.opacity="1";
+    dots.innerHTML=D.people.map((p,pi)=>`<circle cx="${px.toFixed(1)}" cy="${yAt(D.acc[pi][i]).toFixed(1)}" r="3.4" fill="${D.cor[pi]}" stroke="#fff" stroke-width="1.2"/>`).join("");
+    // ordena por valor desc no tooltip
+    const linhas=D.people.map((p,pi)=>({p:p,c:D.cor[pi],v:D.acc[pi][i]})).sort((a,b)=>b.v-a.v);
+    tip.innerHTML=`<div class="tt-h">${esc(monthLabel(D.meses[i]))}</div>`+
+      linhas.map(l=>`<div class="tt-r"><span><i style="background:${l.c}"></i>${esc(l.p)}</span><b>${money(l.v)}</b></div>`).join("");
+    // posiciona o tooltip perto do cursor, dentro do card
+    const wrap=svg.parentElement.getBoundingClientRect();
+    let left=(px/D.W)*wrap.width;
+    left=Math.max(6,Math.min(wrap.width-tip.offsetWidth-6,left-tip.offsetWidth/2));
+    tip.style.left=left+"px";tip.style.opacity="1";
+  }
+  function hide(){cur.style.opacity="0";tip.style.opacity="0";dots.innerHTML="";}
+  svg.addEventListener("mousemove",e=>show(e.clientX));
+  svg.addEventListener("mouseleave",hide);
+  svg.addEventListener("touchstart",e=>{if(e.touches[0])show(e.touches[0].clientX);},{passive:true});
+  svg.addEventListener("touchmove",e=>{if(e.touches[0])show(e.touches[0].clientX);},{passive:true});
+  svg.addEventListener("touchend",hide);
 }
 function mesesStrip(map){
   const keys=Object.keys(map).sort().slice(-6);
@@ -1029,7 +1161,7 @@ function depositoModal(valor){
   ],v=>{
     if(v.valor<=0){toast("Informe um valor");return false;}
     savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:v.valor,moeda:v.moeda||mo,mes:v.mes||mk,nota:v.nota}])});
-    toast("Depósito registrado");},"Registrar");
+    vibrar(14);toast("Depósito registrado");},"Registrar");
 }
 const MARCOS=[25,50,75,100];
 function checarMarco(me,pct){
@@ -1068,7 +1200,7 @@ function renderCofre(){
     <div class="row">
       <div class="grow">
         <div class="lbl">Já guardei</div>
-        <div class="big money">${fmt(sav)}</div>
+        <div class="big money count" data-count="${disp(sav).toFixed(0)}" data-pre="${STATE.cur==="BRL"?"R$ ":(STATE.cur==="USD"?"US$ ":"€ ")}" data-final="${fmt(sav)}">${fmt(sav)}</div>
         <div class="of">de ${fmt(meta)}${STATE.cur!=="EUR"?` · <b style="color:var(--mun)">≈ ${fmtCur(sav,"EUR")}</b>`:""}</div>
         <div class="of" style="margin-top:2px"><span class="lnk" id="metaedit">${metaAuto(me)?"meta automática":"editar meta"}</span></div>
       </div>
@@ -1131,9 +1263,11 @@ function renderCofre(){
   ${fm>0?`<div class="note" style="text-align:center">A meta não inclui ${fmt(fm)} da sua passagem aérea, que vai parcelada no cartão. O plano completo está em Custos.</div>`:""}`;
 
   checarMarco(me,pct);
+  wireChart();
+  requestAnimationFrame(animarNumeros);
   const q=$("#quick");if(q)q.onclick=()=>{
     savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:conv(M.falta,moedaDe(me)),moeda:moedaDe(me),mes:M.mk,nota:"meta do mês"}])});
-    toast("Mês fechado 🎉");};
+    vibrar(18);toast("Mês fechado 🎉");};
   const dp=$("#dpadd");if(dp)dp.onclick=()=>depositoModal(0);
   $("#p-cofre").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
     if(!confirm("Excluir este depósito?"))return;
@@ -1168,7 +1302,7 @@ function comparativo(p){
 }
 
 /* ---- 11. CUSTOS (orçamento) ---------------------------- */
-let custosView="grupo";
+let custosView=localStorage.getItem("tr27_csub")||"grupo";
 function renderCustos(){
   const me=STATE.me;
   const itens=custoItens();
@@ -1206,6 +1340,7 @@ function renderCustos(){
   <div class="${custosView==="grupo"?"":"hidden"}">
     <div class="dtwo">
     <div class="dcol">
+    <div class="sect" style="margin-top:0">Total por pessoa<span class="r">o plano de cada um</span></div>
     <div class="card">
       <table class="tb"><thead><tr><th>Pessoa</th><th>Meta</th><th>Passagem</th><th>Total</th></tr></thead><tbody>
       ${PEOPLE.map(p=>`<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(orcamentoDe(p))}</td>
@@ -1271,7 +1406,7 @@ function renderCustos(){
       '<div class="empty">Nada lançado ainda.<br>Conforme for pagando, registre aqui para comparar com o plano.</div>'}
   </div>`;
 
-  $("#cseg").querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{custosView=el.dataset.v;renderCustos();});
+  $("#cseg").querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{custosView=el.dataset.v;localStorage.setItem("tr27_csub",custosView);renderCustos();});
   const ga=$("#goadm");if(ga)ga.onclick=()=>{show("admin");admView="custos";renderAdmin();};
 
   const gastoModal=(x)=>openModal(x?"Editar gasto":"Gasto individual",[
@@ -1365,11 +1500,18 @@ function openModal(title,fields,onSave,saveLabel){
 }
 
 /* ---- 13. ROTEIRO --------------------------------------- */
+let roteiroBusca="";
 function renderRoteiro(){
-  const dias=(STATE.roteiro.dias||[]).slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)));
+  let dias=(STATE.roteiro.dias||[]).slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)));
   const adm=isAdmin();
   const cityOpts=(STATE.config.cidades||[]).map(c=>({v:c.k,l:c.n}));
   const hoje=new Date();hoje.setHours(0,0,0,0);
+  const hojeKey=new Date().toISOString().slice(0,10);
+  const diaHoje=dias.find(d=>String(d.data).slice(0,10)===hojeKey);
+  const q=roteiroBusca.trim().toLowerCase();
+  if(q)dias=dias.map(d=>Object.assign({},d,{itens:(d.itens||[]).filter(a=>
+    (a.titulo||"").toLowerCase().includes(q)||(a.nota||"").toLowerCase().includes(q))}))
+    .filter(d=>(d.titulo||"").toLowerCase().includes(q)||(d.itens||[]).length);
 
   $("#p-roteiro").innerHTML=`
   <div class="card tight">
@@ -1377,6 +1519,12 @@ function renderRoteiro(){
       <div class="pill ${c.k}" style="display:inline-block">${esc(c.n)}</div>
       <div class="note" style="margin-top:5px">${fmtDate(c.de).slice(4)} – ${fmtDate(c.ate).slice(4)}</div></div>`).join("")}</div>
   </div>
+  ${(emViagem()&&diaHoje)?`<div class="hoje-card">
+    <div class="lbl" style="color:#fff;opacity:.85">Hoje · ${fmtDate(diaHoje.data)}</div>
+    <div class="disp" style="font-size:20px;margin:2px 0 8px">${esc(diaHoje.titulo||cityOf(diaHoje.cidade).n)}</div>
+    ${(diaHoje.itens||[]).length?(diaHoje.itens||[]).map(a=>`<div class="hoje-act"><b>${esc(a.hora||"—")}</b> ${esc(a.titulo)}</div>`).join(""):'<div class="hoje-act" style="opacity:.8">Dia livre — aproveitem!</div>'}
+  </div>`:""}
+  <div class="searchbar"><input id="rotbusca" placeholder="Buscar no roteiro…" value="${esc(roteiroBusca)}">${roteiroBusca?`<button id="rotlimpa" aria-label="Limpar">✕</button>`:""}</div>
   ${dias.length?dias.map(d=>{
     const c=cityOf(d.cidade);
     return `<div class="day ${esc(d.cidade)}"><div class="dot"></div>
@@ -1393,6 +1541,9 @@ function renderRoteiro(){
   ${adm?'<button class="btn sec" id="dayadd" style="margin-top:8px">+ Novo dia</button>':
     '<div class="note" style="text-align:center">Sugestão de passeio? Manda pro Caio incluir.</div>'}`;
 
+  const sb=$("#rotbusca");
+  if(sb){sb.oninput=()=>{roteiroBusca=sb.value;const p=sb.selectionStart;renderRoteiro();const n=$("#rotbusca");if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};}
+  const rl=$("#rotlimpa");if(rl)rl.onclick=()=>{roteiroBusca="";renderRoteiro();};
   if(!adm)return;
   const da=$("#dayadd");
   if(da)da.onclick=()=>openModal("Novo dia",[
@@ -1427,8 +1578,12 @@ function renderRoteiro(){
 }
 
 /* ---- 14. COMPRAS --------------------------------------- */
+let comprasBusca="";
 function renderCompras(){
-  const me=STATE.me,compras=(meDoc().compras||[]);
+  const me=STATE.me;let compras=(meDoc().compras||[]);
+  const qc=comprasBusca.trim().toLowerCase();
+  const comprasAll=compras;
+  if(qc)compras=compras.filter(i=>(i.item||"").toLowerCase().includes(qc)||(i.onde||"").toLowerCase().includes(qc));
   const tot=compras.reduce((a,i)=>a+toBRL(i.valor,i.moeda),0);
   const feito=compras.filter(i=>i.ok).reduce((a,i)=>a+toBRL(i.valor,i.moeda),0);
   const nOk=compras.filter(i=>i.ok).length;
@@ -1443,6 +1598,7 @@ function renderCompras(){
   </div></div>
 
   <button class="btn" id="cpadd">+ Adicionar item</button>
+  ${comprasAll.length>=6?`<div class="searchbar" style="margin-top:10px"><input id="cpbusca" placeholder="Buscar item…" value="${esc(comprasBusca)}">${comprasBusca?`<button id="cplimpa" aria-label="Limpar">✕</button>`:""}</div>`:""}
 
   ${compras.length?`<div class="sect">Lista</div>`+compras.map(i=>`<div class="li ${i.ok?"done":""}">
       <div class="tick ${i.ok?"on":""}" data-ctog="${i.id}" role="button" tabindex="0">✓</div>
@@ -1454,6 +1610,9 @@ function renderCompras(){
 
   <div class="note">Só você vê e edita a sua lista. Todo item com preço entra automaticamente na <b>sua</b> meta de poupança — e só na sua.</div>`;
 
+  const cb=$("#cpbusca");
+  if(cb){cb.oninput=()=>{comprasBusca=cb.value;const p=cb.selectionStart;renderCompras();const n=$("#cpbusca");if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};}
+  const cl=$("#cplimpa");if(cl)cl.onclick=()=>{comprasBusca="";renderCompras();};
   $("#cpadd").onclick=()=>openModal("Novo item",[
     {id:"item",label:"O que é",placeholder:"Ex.: perfume pra minha mãe"},
     {id:"valor",label:"Quanto deve custar",type:"money",placeholder:"0,00"},
@@ -1669,7 +1828,7 @@ function renderRacha(){
   const rs=$("#rachashare");
   if(rs)rs.onclick=async()=>{
     const linhas=trs.map(t=>`• ${t.de} → ${t.para}: ${fmtMO(t.v/100)}`).join("\n");
-    const txt=`Acerto da EuroTrip 2027 💶\nGasto do grupo: ${fmtMO(totalG)}\n\nQuem paga quem:\n${linhas}\n\n(mínimo de transferências, valores em ${MOEDA_VIAGEM()})`;
+    const txt=`Acerto da Resenha Trip 2027 💶\nGasto do grupo: ${fmtMO(totalG)}\n\nQuem paga quem:\n${linhas}\n\n(mínimo de transferências, valores em ${MOEDA_VIAGEM()})`;
     try{
       if(navigator.share){await navigator.share({text:txt});}
       else{await navigator.clipboard.writeText(txt);toast("Acerto copiado ✓");}
@@ -1690,7 +1849,7 @@ function renderRacha(){
 
   $("#p-racha").querySelectorAll("[data-quit]").forEach(b=>b.onclick=()=>{
     const t=trs[Number(b.dataset.quit)];if(!t)return;
-    saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).concat([{id:uid(),de:t.de,para:t.para,valor:t.v/100,moeda:MOEDA_VIAGEM(),data:hoje}])});
+    vibrar(14);saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).concat([{id:uid(),de:t.de,para:t.para,valor:t.v/100,moeda:MOEDA_VIAGEM(),data:hoje}])});
     toast("Transferência registrada");});
   $("#p-racha").querySelectorAll("[data-ddl]").forEach(b=>b.onclick=()=>
     saveDoc("racha",{despesas:(STATE.racha.despesas||[]).filter(x=>x.id!==b.dataset.ddl)}));
@@ -1872,6 +2031,49 @@ initFB();
 carregarFX();
 let ULT_MES=monthKey(new Date());
 setInterval(()=>{const k=monthKey(new Date());if(k!==ULT_MES){ULT_MES=k;renderAll();}},60000);
+
+/* ---- (1) deslizar entre abas + (2) puxar pra atualizar ---- */
+(function gestos(){
+  const app=document.getElementById("app");if(!app)return;
+  let x0=0,y0=0,t0=0,drag=false,pull=false;
+  const ordem=()=>TABS().map(t=>t[0]).concat(isAdmin()?["admin"]:[]);
+  const bar=document.createElement("div");bar.id="ptr";bar.innerHTML='<span class="ptrspin"></span>';
+  document.body.appendChild(bar);
+  function irLado(dir){
+    const o=ordem(),i=o.indexOf(curTab);if(i<0)return;
+    const n=i+dir;if(n<0||n>=o.length)return;
+    vibrar(8);show(o[n]);if(o[n]==="admin")renderAdmin();
+  }
+  app.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1)return;
+    x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();drag=true;
+    pull=(window.scrollY<=0);
+  },{passive:true});
+  app.addEventListener("touchmove",e=>{
+    if(!drag)return;
+    const dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
+    if(pull&&dy>0&&Math.abs(dy)>Math.abs(dx)){
+      const d=Math.min(90,dy*.5);bar.style.transform=`translateY(${d}px)`;bar.style.opacity=Math.min(1,d/60);
+      if(d>=60)bar.classList.add("ready");else bar.classList.remove("ready");
+    }
+  },{passive:true});
+  app.addEventListener("touchend",e=>{
+    if(!drag)return;drag=false;
+    const t=e.changedTouches[0];const dx=t.clientX-x0, dy=t.clientY-y0, dt=Date.now()-t0;
+    // pull-to-refresh
+    if(pull&&dy>60&&Math.abs(dy)>Math.abs(dx)*1.4){
+      bar.classList.add("spin");bar.style.transform="translateY(64px)";bar.style.opacity="1";vibrar(14);
+      Promise.resolve(carregarFX(true)).finally(()=>{setTimeout(()=>{
+        bar.classList.remove("spin","ready");bar.style.transform="";bar.style.opacity="0";toast("Atualizado ✓");},600);});
+    }else{bar.classList.remove("ready");bar.style.transform="";bar.style.opacity="0";}
+    // swipe horizontal (rápido e predominantemente lateral)
+    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6&&dt<600){
+      // ignora se o gesto começou num elemento que rola lateralmente (seg)
+      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table");
+      if(!alvo)irLado(dx<0?1:-1);
+    }
+  },{passive:true});
+})();
 
 </script>
 </body>
