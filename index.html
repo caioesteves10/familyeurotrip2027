@@ -40,7 +40,7 @@ body{background:var(--bg);color:var(--text);
  padding-bottom:calc(78px + env(safe-area-inset-bottom));
  font-feature-settings:"tnum" 1,"cv05" 1}
 body::before{content:"";position:fixed;inset:0 0 auto 0;height:calc(200px + env(safe-area-inset-top));pointer-events:none;z-index:0;background:var(--bg)}
-.wrap{position:relative;z-index:1;padding:calc(14px + env(safe-area-inset-top)) 14px 0;
+.wrap{position:relative;z-index:1;overflow-x:clip;padding:calc(14px + env(safe-area-inset-top)) 14px 0;
  padding-left:calc(14px + env(safe-area-inset-left));padding-right:calc(14px + env(safe-area-inset-right))}
 .hidden{display:none!important}
 b{font-weight:700}
@@ -136,6 +136,11 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .seg::-webkit-scrollbar{display:none}
 .seg div{flex:1 0 auto;white-space:nowrap;text-align:center;padding:9px 14px;font-size:13.5px;font-weight:700;color:var(--muted);border-radius:9px;cursor:pointer}
 .seg div.on{background:var(--panel);color:var(--navy);box-shadow:var(--shadow)}
+.catfilter{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
+.catchip{font-size:12px;font-weight:700;color:var(--muted);background:var(--panel2);border:1px solid var(--line);
+ border-radius:99px;padding:5px 12px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;white-space:nowrap}
+.catchip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.catchip:active{transform:scale(.95)}
 
 /* ---------- barra inferior ---------- */
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--panel);
@@ -285,6 +290,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .lg{display:flex;gap:14px;font-size:10.5px;color:var(--dim);font-weight:700;margin-top:6px;flex-wrap:wrap}
 .chartwrap{position:relative}
 .chartwrap svg{height:190px}
+.chart-tip{transition:opacity .12s,left .1s ease}
 .chart-tip{position:absolute;top:6px;pointer-events:none;background:var(--panel);border:1px solid var(--line2);
  border-radius:11px;padding:8px 10px;box-shadow:var(--shadowlg);font-size:11.5px;min-width:132px;transition:opacity .12s;z-index:5}
 .chart-tip .tt-h{font-weight:800;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
@@ -370,7 +376,11 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
   .cofre-top .cofre-month{display:flex;flex-direction:column}
   .cofre-top .cofre-month .card{margin-bottom:0;flex:1}
   .cofre-top .sect{margin-top:0}
-  .chartwrap svg{height:260px}
+  .chartwrap svg{height:270px}
+  /* A família (esquerda) + gráfico (direita) lado a lado */
+  .cofre-fam{display:grid;grid-template-columns:1fr 1.15fr;gap:16px;align-items:start}
+  .cofre-fam .dcol{display:flex;flex-direction:column;min-width:0}
+  .cofre-fam .dcol .card{flex:1}
   .modal{align-items:center}
   .modal .box{max-width:460px;border-radius:20px}
   .seg{max-width:100%}
@@ -958,16 +968,30 @@ function show(t){
   curTab=t;localStorage.setItem(LS.tab,t);applyTab();
   if(changed)animarNumeros();
 }
-/* (6) anima os números .money.big / .disp para "contar" até o valor */
+/* (6/3) anima os números financeiros do painel ativo para "contar" até o valor.
+   Detecta automaticamente os displays de dinheiro grandes e conta de 0 até o valor,
+   preservando exatamente o texto final formatado. */
 function animarNumeros(){
   if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches)return;
-  $$(".panel-v.on .count").forEach(el=>{
-    const alvo=parseFloat(el.dataset.count);if(isNaN(alvo))return;
-    const dur=520,t0=performance.now(),suf=el.dataset.suf||"";
-    const pre=el.dataset.pre||"";
-    const fmtN=v=>pre+new Intl.NumberFormat("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0}).format(Math.round(v))+suf;
+  const panel=document.querySelector(".panel-v.on");if(!panel)return;
+  // seletor dos displays financeiros com destaque (não anima tabelas/linhas pequenas)
+  const alvos=panel.querySelectorAll(".disp.money, .big.money, .hero .pct, .kpi .v.money");
+  alvos.forEach(el=>{
+    if(el._anim)return;
+    const txtFinal=el.textContent;
+    // extrai o número do texto (aceita R$ 1.234,56 / US$ 1.234 / € 900 / 25%)
+    const m=txtFinal.replace(/\u00a0/g," ").match(/-?[\d.]+(?:,\d+)?/);
+    if(!m)return;
+    const num=parseFloat(m[0].replace(/\./g,"").replace(",","."));
+    if(isNaN(num)||Math.abs(num)<1)return; // não anima 0 ou vazio
+    // reconstrói o texto substituindo só a parte numérica, pra manter prefixo/sufixo (R$, %, etc.)
+    const casas=(m[0].indexOf(",")>=0)?(m[0].length-m[0].indexOf(",")-1):0;
+    const fmtN=v=>txtFinal.replace(m[0],new Intl.NumberFormat("pt-BR",{minimumFractionDigits:casas,maximumFractionDigits:casas}).format(v));
+    el._anim=true;
+    const dur=560,t0=performance.now();
     function step(t){const p=Math.min(1,(t-t0)/dur);const e=1-Math.pow(1-p,3);
-      el.textContent=fmtN(alvo*e);if(p<1)requestAnimationFrame(step);else el.textContent=el.dataset.final||fmtN(alvo);}
+      el.textContent=fmtN(num*e);
+      if(p<1)requestAnimationFrame(step);else{el.textContent=txtFinal;el._anim=false;}}
     requestAnimationFrame(step);
   });
 }
@@ -1060,7 +1084,7 @@ function renderHeader(){
   const cbtn=$("#fxconv");
   if(cbtn)cbtn.onclick=abrirCambio;
   $("#fxline").querySelectorAll("[data-cur]").forEach(el=>el.onclick=()=>{
-    STATE.cur=el.dataset.cur;localStorage.setItem(LS.cur,STATE.cur);renderAll();});
+    STATE.cur=el.dataset.cur;localStorage.setItem(LS.cur,STATE.cur);renderAll();requestAnimationFrame(animarNumeros);});
   $("#foot").textContent=c.nota||"";
 }
 
@@ -1163,7 +1187,7 @@ function wireChart(){
   function draw(){
     const W=Math.round(wrap.clientWidth||320);
     // altura conforme viewport (desktop maior)
-    const H=window.innerWidth>=900?240:180;
+    const H=window.innerWidth>=900?270:180;
     const pl=12,pr=16,pt=18,pb=28,n=D.meses.length;
     svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
     svg.setAttribute("width",W);svg.setAttribute("height",H);
@@ -1199,17 +1223,17 @@ function wireChart(){
     let i=Math.round(rel*(geo.n-1));i=Math.max(0,Math.min(geo.n-1,i));
     const px=geo.x(i);
     if(cur){cur.setAttribute("x1",px);cur.setAttribute("x2",px);cur.style.opacity="1";}
-    if(dots)dots.innerHTML=D.people.map((p,pi)=>`<circle cx="${px.toFixed(1)}" cy="${geo.y(D.acc[pi][i]).toFixed(1)}" r="4" fill="${D.cor[pi]}" stroke="var(--panel)" stroke-width="1.6"/>`).join("");
+    if(dots)dots.innerHTML=D.people.map((p,pi)=>`<circle cx="${px.toFixed(1)}" cy="${geo.y(D.acc[pi][i]).toFixed(1)}" r="4.5" fill="${D.cor[pi]}" stroke="var(--panel)" stroke-width="2"/>`).join("");
     const linhas=D.people.map((p,pi)=>({p:p,c:D.cor[pi],v:D.acc[pi][i]})).sort((a,b)=>b.v-a.v);
     tip.innerHTML=`<div class="tt-h">${esc(monthLabel(D.meses[i]))}</div>`+
       linhas.map(l=>`<div class="tt-r"><span><i style="background:${l.c}"></i>${esc(l.p)}</span><b>${money(l.v)}</b></div>`).join("");
-    // canto superior oposto ao dedo/cursor — nunca em cima dos pontos
+    // canto superior oposto ao cursor — nunca em cima dos pontos
     const wrapR=wrap.getBoundingClientRect();
     const relW=(clientX-wrapR.left)/wrapR.width; // 0..1 dentro do card
-    const tw=tip.offsetWidth||150;
-    let left = relW < 0.5 ? (wrapR.width-tw-8) : 8;
-    left=Math.max(6,Math.min(wrapR.width-tw-6,left));
-    tip.style.left=left+"px";tip.style.top="6px";tip.style.opacity="1";
+    const tw=tip.offsetWidth||140;
+    let left = relW < 0.5 ? (wrapR.width-tw-6) : 6;
+    left=Math.max(4,Math.min(wrapR.width-tw-4,left));
+    tip.style.left=left+"px";tip.style.top="2px";tip.style.opacity="1";
   }
   function hide(){const cur=document.getElementById("glcursor"),dots=document.getElementById("gldots");
     if(cur)cur.style.opacity="0";if(dots)dots.innerHTML="";tip.style.opacity="0";}
@@ -1331,8 +1355,9 @@ function renderCofre(){
       <button class="x" data-del="${x.id}" aria-label="Excluir">✕</button></div>`).join("")+`</div>`:
     '<div class="empty">Nada guardado ainda.<br>O primeiro depósito é o mais difícil.</div>'}
 
-  ${grupoLinha()?`<div class="sect">Evolução do grupo<span class="r">acumulado</span></div>${grupoLinha()}`:""}
-  <div class="sect">A família<span class="r">${(()=>{const g=PEOPLE.reduce((a,p)=>a+guardado(p),0),m=PEOPLE.reduce((a,p)=>a+metaDe(p),0);return m?Math.round(g/m*100)+"% do total":"";})()}</span></div>
+  <div class="cofre-fam">
+  <div class="dcol">
+  <div class="sect" style="margin-top:0">A família<span class="r">${(()=>{const g=PEOPLE.reduce((a,p)=>a+guardado(p),0),m=PEOPLE.reduce((a,p)=>a+metaDe(p),0);return m?Math.round(g/m*100)+"% do total":"";})()}</span></div>
   <div class="card">
     <div class="rail" style="margin:2px 0 12px"><i style="width:${(()=>{const g=PEOPLE.reduce((a,p)=>a+guardado(p),0),m=PEOPLE.reduce((a,p)=>a+metaDe(p),0);return m?clamp(g/m*100,0,100):0;})()}%"></i></div>
     <table class="tb"><thead><tr><th>Pessoa</th><th>Guardado</th><th>% da meta</th></tr></thead><tbody>
@@ -1340,6 +1365,12 @@ function renderCofre(){
       return `<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(g)}</td>
       <td style="color:${m&&g>=m?"var(--ok)":"var(--muted)"}">${m?Math.round(g/m*100):0}%</td></tr>`;}).join("")}
     </tbody><tfoot><tr><td>Total</td><td class="money">${fmt(PEOPLE.reduce((a,p)=>a+guardado(p),0))}</td><td></td></tr></tfoot></table>
+  </div>
+  </div>
+  ${grupoLinha()?`<div class="dcol">
+  <div class="sect" style="margin-top:0">Evolução do grupo<span class="r">acumulado</span></div>
+  ${grupoLinha()}
+  </div>`:""}
   </div>
   ${fm>0?`<div class="note" style="text-align:center">A meta não inclui ${fmt(fm)} da sua passagem aérea, que vai parcelada no cartão. O plano completo está em Custos.</div>`:""}`;
 
@@ -1384,6 +1415,7 @@ function comparativo(p){
 
 /* ---- 11. CUSTOS (orçamento) ---------------------------- */
 let custosView=localStorage.getItem("tr27_csub")||"grupo";
+let outrosCat="";  // filtro de categoria na aba Outros Gastos ("" = todas)
 function renderCustos(){
   const me=STATE.me;
   const itens=custoItens();
@@ -1412,10 +1444,10 @@ function renderCustos(){
   </div>
 
   <div class="seg" id="cseg">
-    <div data-v="grupo" class="${custosView==="grupo"?"on":""}">Por pessoa</div>
-    <div data-v="itens" class="${custosView==="itens"?"on":""}">Custos Gerais</div>
-    <div data-v="meus" class="${custosView==="meus"?"on":""}">Outros Gastos</div>
-    <div data-v="real" class="${custosView==="real"?"on":""}">Realizados</div>
+    ${(emViagem()?
+      [["real","Realizados"],["meus","Outros Gastos"],["itens","Custos Gerais"],["grupo","Metas"]]:
+      [["grupo","Metas"],["itens","Custos Gerais"],["meus","Outros Gastos"],["real","Realizados"]]
+    ).map(t=>`<div data-v="${t[0]}" class="${custosView===t[0]?"on":""}">${t[1]}</div>`).join("")}
   </div>
 
   <div class="${custosView==="grupo"?"":"hidden"}">
@@ -1458,11 +1490,21 @@ function renderCustos(){
   <div class="${custosView==="meus"?"":"hidden"}">
     <button class="btn" id="pgadd">+ Novo gasto individual</button>
     <div class="note" style="margin-bottom:9px">Seu orçamento pessoal junta os gastos daqui com os itens que têm preço na sua <b>lista de compras</b>. Tudo isso entra só na sua meta.</div>
-    ${pess.length?pess.map(x=>`<div class="li"><div class="t"><div class="n">${esc(x.desc)}</div>
+    ${(()=>{
+      const catsPess=[...new Set(pess.map(x=>x.cat||(x.de==="Compras"?"Compras":"Outros")))].sort();
+      if(!catsPess.length)return "";
+      if(outrosCat&&!catsPess.includes(outrosCat))outrosCat="";
+      return `<div class="catfilter"><span class="catchip ${outrosCat===""?"on":""}" data-catf="">Todas</span>`+
+        catsPess.map(c=>`<span class="catchip ${outrosCat===c?"on":""}" data-catf="${esc(c)}">${esc(c)}</span>`).join("")+`</div>`;
+    })()}
+    ${(()=>{
+      const lista=outrosCat?pess.filter(x=>(x.cat||(x.de==="Compras"?"Compras":"Outros"))===outrosCat):pess;
+      return lista.length?lista.map(x=>`<div class="li"><div class="t"><div class="n">${esc(x.desc)}</div>
       <div class="s">${x.de==="Compras"?"lista de compras":"gasto individual"}${x.cat?" · "+esc(x.cat):""} · ${fmt(toBRL(x.valor,x.moeda))}</div></div>
       <div class="v money">${fmtIn(x.valor,x.moeda)}</div>
       ${x.de==="Compras"?'<span class="pill" style="flex:0 0 auto">em Compras</span>':`<button class="x" data-pedit="${x.id}" aria-label="Editar">✎</button><button class="x" data-pdel="${x.id}" aria-label="Excluir">✕</button>`}</div>`).join(""):
-      '<div class="empty">Nenhum gasto individual.<br>Compras e extras pessoais entram aqui.</div>'}
+      (outrosCat?`<div class="empty">Nenhum gasto em "${esc(outrosCat)}".</div>`:'<div class="empty">Nenhum gasto individual.<br>Compras e extras pessoais entram aqui.</div>');
+    })()}
   </div>
 
   <div class="${custosView==="real"?"":"hidden"}">
@@ -1487,7 +1529,13 @@ function renderCustos(){
       '<div class="empty">Nada lançado ainda.<br>Conforme for pagando, registre aqui para comparar com o plano.</div>'}
   </div>`;
 
-  $("#cseg").querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{custosView=el.dataset.v;localStorage.setItem("tr27_csub",custosView);renderCustos();});
+  $("#cseg").querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{
+    const sl=$("#cseg")?$("#cseg").scrollLeft:0;
+    custosView=el.dataset.v;localStorage.setItem("tr27_csub",custosView);renderCustos();
+    const seg=$("#cseg");if(seg)seg.scrollLeft=sl; // mantém a rolagem onde estava
+    requestAnimationFrame(animarNumeros);});
+  $("#p-custos").querySelectorAll("[data-catf]").forEach(el=>el.onclick=()=>{
+    outrosCat=el.dataset.catf;renderCustos();});
   const ga=$("#goadm");if(ga)ga.onclick=()=>{show("admin");admView="custos";renderAdmin();};
 
   const gastoModal=(x)=>openModal(x?"Editar gasto":"Gasto individual",[
@@ -2045,7 +2093,6 @@ function renderAdmin(){
   <div class="${admView==="config"?"":"hidden"}">
     <div class="card">
       <div class="fld"><label class="f" for="cnome">Nome da viagem</label><input id="cnome" value="${esc(c.nome||"")}"></div>
-      <div class="fld"><label class="f" for="ctag">Legenda do topo</label><input id="ctag" value="${esc(c.tagline||"")}"></div>
       <div class="f2">
         <div><label class="f" for="cini">Início</label><input id="cini" type="date" value="${esc(c.inicio||"")}"></div>
         <div><label class="f" for="cfim">Fim</label><input id="cfim" type="date" value="${esc(c.fim||"")}"></div>
@@ -2119,7 +2166,7 @@ function renderAdmin(){
     saveDoc("custos",{itens:itens.filter(x=>x.id!==b.dataset.citd)});});
   const cs=$("#csave");
   if(cs)cs.onclick=()=>{
-    saveDoc("config",{nome:$("#cnome").value.trim()||"Viagem",tagline:$("#ctag").value.trim(),
+    saveDoc("config",{nome:$("#cnome").value.trim()||"Viagem",
       inicio:$("#cini").value,fim:$("#cfim").value,nota:$("#cnota").value.trim(),
       inicioPoupanca:$("#cpoup").value,
       fx:{EUR:parseMoney($("#ceur").value)||6.2,USD:parseMoney($("#cusd").value)||5.4}});
@@ -2183,42 +2230,70 @@ setInterval(()=>{const k=monthKey(new Date());if(k!==ULT_MES){ULT_MES=k;renderAl
 /* ---- (1) deslizar entre abas + (2) puxar pra atualizar ---- */
 (function gestos(){
   const app=document.getElementById("app");if(!app)return;
-  let x0=0,y0=0,t0=0,drag=false,pull=false;
+  let x0=0,y0=0,t0=0,drag=false,pull=false,hor=null;
   const ordem=()=>TABS().map(t=>t[0]).concat(isAdmin()?["admin"]:[]);
   const bar=document.createElement("div");bar.id="ptr";bar.innerHTML='<span class="ptrspin"></span>';
   document.body.appendChild(bar);
+  const painel=()=>document.querySelector(".panel-v.on");
   function irLado(dir){
     const o=ordem(),i=o.indexOf(curTab);if(i<0)return;
     const n=i+dir;if(n<0||n>=o.length)return;
-    vibrar(8);show(o[n]);if(o[n]==="admin")renderAdmin();
+    // anima a saída do painel atual na direção do gesto, depois troca e anima a entrada
+    const atual=painel();
+    if(atual){atual.style.transition="transform .18s ease, opacity .18s ease";
+      atual.style.transform=`translateX(${dir>0?-40:40}px)`;atual.style.opacity="0";}
+    vibrar(8);
+    setTimeout(()=>{
+      show(o[n]);if(o[n]==="admin")renderAdmin();
+      const novo=painel();
+      if(novo){novo.style.transition="none";novo.style.transform=`translateX(${dir>0?60:-60}px)`;novo.style.opacity="0";
+        requestAnimationFrame(()=>{novo.style.transition="transform .24s cubic-bezier(.2,.7,.3,1), opacity .24s ease";
+          novo.style.transform="";novo.style.opacity="1";
+          setTimeout(()=>{novo.style.transition="";},260);});}
+      if(atual){atual.style.transition="";atual.style.transform="";atual.style.opacity="";}
+    },140);
   }
+  function limpaDrag(){const p=painel();if(p){p.style.transition="transform .2s ease";p.style.transform="";setTimeout(()=>{if(p)p.style.transition="";},220);}}
   app.addEventListener("touchstart",e=>{
     if(e.touches.length!==1)return;
-    x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();drag=true;
+    x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();drag=true;hor=null;
     pull=(window.scrollY<=0);
   },{passive:true});
   app.addEventListener("touchmove",e=>{
     if(!drag)return;
     const dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
-    if(pull&&dy>0&&Math.abs(dy)>Math.abs(dx)){
+    // decide a direção do gesto uma vez
+    if(hor===null&&(Math.abs(dx)>8||Math.abs(dy)>8))hor=Math.abs(dx)>Math.abs(dy);
+    if(pull&&!hor&&dy>0){
       const d=Math.min(90,dy*.5);bar.style.transform=`translateY(${d}px)`;bar.style.opacity=Math.min(1,d/60);
       if(d>=60)bar.classList.add("ready");else bar.classList.remove("ready");
+    }
+    // arrasto lateral: o painel segue o dedo (com resistência nas bordas)
+    if(hor){
+      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table, input, textarea, select");
+      if(!alvo){
+        const o=ordem(),i=o.indexOf(curTab);
+        const borda=(dx>0&&i<=0)||(dx<0&&i>=o.length-1);
+        const mov=borda?dx*.25:dx*.6; // resistência se não há aba pra ir
+        const p=painel();if(p){p.style.transition="none";p.style.transform=`translateX(${mov}px)`;p.style.opacity=String(Math.max(.55,1-Math.abs(mov)/500));}
+      }
     }
   },{passive:true});
   app.addEventListener("touchend",e=>{
     if(!drag)return;drag=false;
     const t=e.changedTouches[0];const dx=t.clientX-x0, dy=t.clientY-y0, dt=Date.now()-t0;
     // pull-to-refresh
-    if(pull&&dy>60&&Math.abs(dy)>Math.abs(dx)*1.4){
+    if(pull&&!hor&&dy>60){
       bar.classList.add("spin");bar.style.transform="translateY(64px)";bar.style.opacity="1";vibrar(14);
       Promise.resolve(carregarFX(true)).finally(()=>{setTimeout(()=>{
         bar.classList.remove("spin","ready");bar.style.transform="";bar.style.opacity="0";toast("Atualizado ✓");},600);});
     }else{bar.classList.remove("ready");bar.style.transform="";bar.style.opacity="0";}
-    // swipe horizontal (rápido e predominantemente lateral)
-    if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.6&&dt<600){
-      // ignora se o gesto começou num elemento que rola lateralmente (seg)
-      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table");
-      if(!alvo)irLado(dx<0?1:-1);
+    // swipe horizontal concluído?
+    if(hor){
+      const alvo=e.target.closest&&e.target.closest(".seg, .deplist, table, input, textarea, select");
+      const disparou=Math.abs(dx)>70&&dt<700;
+      if(!alvo&&disparou)irLado(dx<0?1:-1);
+      else limpaDrag(); // não passou do limite: volta o painel pro lugar
     }
   },{passive:true});
 })();
