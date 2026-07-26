@@ -144,6 +144,14 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
  border-radius:99px;padding:5px 12px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;white-space:nowrap}
 .catchip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .catchip:active{transform:scale(.95)}
+/* Mala (sub-aba do checklist) */
+.mala-hero{display:flex;align-items:center;gap:16px;background:var(--navy);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadowlg)}
+.mala-bag{position:relative;flex:0 0 auto;width:60px;height:60px;color:rgba(255,255,255,.9)}
+.mala-bag svg{width:60px;height:60px;position:relative;z-index:2}
+.mala-bagfill{position:absolute;left:6px;right:6px;bottom:4px;background:var(--orange);border-radius:4px;z-index:1;transition:height .5s cubic-bezier(.2,.7,.3,1);opacity:.85;max-height:44px}
+.mala-heroinfo{flex:1;min-width:0}
+.mala-msg{font-size:12.5px;font-weight:700;color:var(--orange);margin-top:2px}
+.li .t .s{font-size:11.5px;color:var(--dim);margin-top:2px;font-weight:600}
 /* divisor de restaurante */
 .rest-box{max-width:520px}
 .rest-sec{font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px;display:flex;justify-content:space-between;align-items:center}
@@ -683,7 +691,7 @@ const STATE={
   me:localStorage.getItem(LS.me)||null,
   cur:localStorage.getItem(LS.cur)||""
 };
-PEOPLE.forEach(p=>STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[]});
+PEOPLE.forEach(p=>STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]});
 
 /* ---- 4. UTILITÁRIOS ------------------------------------ */
 const SUN='<circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>';
@@ -837,7 +845,7 @@ async function ensureSeed(){
   b.set(FB.doc(db,NS.viagem,"roteiro"),SEED.roteiro);
   b.set(FB.doc(db,NS.viagem,"custos"),SEED.custos);
   b.set(FB.doc(db,NS.viagem,"racha"),SEED.racha);
-  PEOPLE.forEach(p=>b.set(FB.doc(db,NS.pessoas,p),{meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[]}));
+  PEOPLE.forEach(p=>b.set(FB.doc(db,NS.pessoas,p),{meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]}));
   b.set(sref,{done:true,at:Date.now()});
   await b.commit();
 }
@@ -849,8 +857,8 @@ function listen(){
   doc1("custos","custos",SEED.custos);
   doc1("racha","racha",SEED.racha);
   FB.onSnapshot(FB.collection(db,NS.pessoas),s=>{
-    PEOPLE.forEach(p=>{if(!STATE.pessoas[p])STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[]};});
-    s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[]};});
+    PEOPLE.forEach(p=>{if(!STATE.pessoas[p])STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};});
+    s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[]};});
     renderAll();});
 }
 function loadLocal(){
@@ -878,7 +886,7 @@ async function savePessoa(nome,obj){
   try{await FB.setDoc(FB.doc(db,NS.pessoas,nome),obj,{merge:true});}
   catch(e){console.error(e);toast("Erro ao salvar: "+String((e&&e.code)||(e&&e.message)||e).slice(0,60));}
 }
-const meDoc=()=>STATE.pessoas[STATE.me]||{meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[]};
+const meDoc=()=>STATE.pessoas[STATE.me]||{meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};
 const CAT_BASE=["Passagens","Hospedagem","Transporte","Passeios","Alimentação","Compras","Seguro","Reserva","Outros"];
 function categorias(){
   const set=new Set(CAT_BASE);
@@ -2058,12 +2066,28 @@ function renderCompras(){
 }
 
 /* ---- 14b. CHECKLIST ------------------------------------ */
+let checkView=localStorage.getItem("tr27_check")||"geral";
+let malaCats=[]; // filtro de categorias na Mala
 function renderCheck(){
   const me=STATE.me,chk=(meDoc().checklist||[]);
   const nOk=chk.filter(i=>i.ok).length,pct=chk.length?Math.round(nOk/chk.length*100):0;
   const falta=chk.filter(i=>!i.ok),pronto=chk.filter(i=>i.ok);
+  // ---- MALA ----
+  const mala=(meDoc().mala||[]);
+  const mOk=mala.filter(i=>i.ok).length,mpct=mala.length?Math.round(mOk/mala.length*100):0;
+  const catsMala=[...new Set(mala.map(i=>i.cat||"Geral"))].sort();
+  malaCats=malaCats.filter(c=>catsMala.includes(c));
+  const malaView=malaCats.length?mala.filter(i=>malaCats.includes(i.cat||"Geral")):mala;
+  const mFalta=malaView.filter(i=>!i.ok),mPronto=malaView.filter(i=>i.ok);
+  const dias=daysTo(STATE.config.inicio);
 
   $("#p-check").innerHTML=`
+  <div class="seg" id="ckseg">
+    <div data-cv="geral" class="${checkView==="geral"?"on":""}">Checklist geral</div>
+    <div data-cv="mala" class="${checkView==="mala"?"on":""}">Mala</div>
+  </div>
+
+  <div class="${checkView==="geral"?"":"hidden"}">
   <div class="card tight">
     <div class="row"><div class="grow"><div class="lbl">Preparação de ${esc(me)}</div>
       <div class="disp" style="font-size:26px">${nOk} <span style="font-size:15px;color:var(--muted);font-family:Inter">de ${chk.length}</span></div></div>
@@ -2099,14 +2123,63 @@ function renderCheck(){
     ${PEOPLE.map(p=>{const l=(STATE.pessoas[p]||{}).checklist||[],n=l.filter(x=>x.ok).length,pc=l.length?Math.round(n/l.length*100):0;
     return `<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td>${n}/${l.length}</td>
       <td style="color:${pc===100&&l.length?"var(--ok)":"var(--muted)"}">${pc}%</td></tr>`;}).join("")}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  </div>
 
+  <div class="${checkView==="mala"?"":"hidden"}">
+    <div class="mala-hero">
+      <div class="mala-bag">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>
+        <div class="mala-bagfill" style="height:${mpct}%"></div>
+      </div>
+      <div class="mala-heroinfo">
+        <div class="lbl" style="color:rgba(255,255,255,.8)">Mala de ${esc(me)}</div>
+        <div class="disp" style="font-size:26px;color:#fff">${mOk} <span style="font-size:14px;color:rgba(255,255,255,.7);font-family:Inter">de ${mala.length} itens</span></div>
+        <div class="mala-msg">${!mala.length?"Bora começar a arrumar?":mpct===100?"Mala pronta! Bon voyage ✈️":dias>0&&dias<=30?`Faltam ${dias} dias — ${mpct}% arrumado`:`${mpct}% arrumado`}</div>
+      </div>
+    </div>
+
+    <div class="card tight">
+      <div class="row" style="gap:8px">
+        <div class="grow"><input id="mln" placeholder="O que levar (ex.: carregador)" aria-label="Novo item da mala"></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <div class="grow"><input id="mlcat" placeholder="Categoria (ex.: Roupas)" list="malacatlist" aria-label="Categoria">
+          <datalist id="malacatlist">${catsMala.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
+        <button class="btn sm" id="mladd">Add</button>
+      </div>
+    </div>
+
+    ${catsMala.length?`<div class="catfilter">${["__todas"].concat(catsMala).map(c=>`<span class="catchip ${(c==="__todas"?malaCats.length===0:malaCats.includes(c))?"on":""}" data-mcatf="${esc(c)}">${c==="__todas"?"Todas":esc(c)}</span>`).join("")}</div>`:""}
+
+    ${mFalta.length?`<div class="sect">Ainda na lista<span class="r">${mFalta.length}</span></div>`+
+      mFalta.map(i=>`<div class="li">
+        <div class="tick" data-mtog="${i.id}" role="button" tabindex="0">✓</div>
+        <div class="t"><div class="n">${esc(i.item)}</div>${i.cat?`<div class="s">${esc(i.cat)}</div>`:""}</div>
+        <button class="x" data-medit="${i.id}" aria-label="Editar">✎</button>
+        <button class="x" data-mdel="${i.id}" aria-label="Excluir">✕</button></div>`).join(""):
+      (mala.length?`<div class="okbox">${malaCats.length?"Nada pendente nessas categorias.":"Tudo na mala! Pode fechar o zíper. 🧳"}</div>`:
+      '<div class="empty">Mala vazia por enquanto.<br>Adicione o que precisa levar e organize por categoria.</div>')}
+
+    ${mPronto.length?`<div class="sect">Já na mala<span class="r">${mPronto.length}</span></div>`+
+      mPronto.map(i=>`<div class="li done">
+        <div class="tick on" data-mtog="${i.id}" role="button" tabindex="0">✓</div>
+        <div class="t"><div class="n">${esc(i.item)}</div>${i.cat?`<div class="s">${esc(i.cat)}</div>`:""}</div>
+        <button class="x" data-mdel="${i.id}" aria-label="Excluir">✕</button></div>`).join(""):""}
+    <div class="note">Marque conforme for colocando na mala. Categorias ajudam a não esquecer nada — e a lista é só sua.</div>
+  </div>`;
+
+  // sub-abas
+  $("#ckseg").querySelectorAll("[data-cv]").forEach(el=>el.onclick=()=>{
+    checkView=el.dataset.cv;localStorage.setItem("tr27_check",checkView);renderCheck();});
+
+  // ---- Checklist geral ----
   const add=()=>{
     const it=$("#ckn").value.trim();if(!it){toast("Escreva o item");return;}
     savePessoa(me,{checklist:(meDoc().checklist||[]).concat([{id:uid(),item:it,ok:false}])});
     $("#ckn").value="";};
-  $("#ckadd").onclick=add;
-  $("#ckn").addEventListener("keydown",e=>{if(e.key==="Enter")add();});
+  const ckadd=$("#ckadd");if(ckadd)ckadd.onclick=add;
+  const ckn=$("#ckn");if(ckn)ckn.addEventListener("keydown",e=>{if(e.key==="Enter")add();});
   const ks=$("#ckseed");
   if(ks)ks.onclick=()=>{
     const atual=(meDoc().checklist||[]);
@@ -2120,6 +2193,36 @@ function renderCheck(){
     savePessoa(me,{checklist:(meDoc().checklist||[]).map(x=>x.id===b.dataset.ktog?Object.assign({},x,{ok:!x.ok}):x)}));
   $("#p-check").querySelectorAll("[data-kdel]").forEach(b=>b.onclick=()=>
     savePessoa(me,{checklist:(meDoc().checklist||[]).filter(x=>x.id!==b.dataset.kdel)}));
+
+  // ---- Mala ----
+  const maladd=()=>{
+    const it=$("#mln").value.trim();if(!it){toast("Escreva o item");return;}
+    const cat=$("#mlcat").value.trim();
+    savePessoa(me,{mala:(meDoc().mala||[]).concat([{id:uid(),item:it,ok:false,cat:cat||""}])});
+    $("#mln").value="";$("#mlcat").value="";
+    setTimeout(()=>{const i=$("#mln");if(i)i.focus();},40);};
+  const mla=$("#mladd");if(mla)mla.onclick=maladd;
+  const mln=$("#mln");if(mln)mln.addEventListener("keydown",e=>{if(e.key==="Enter")maladd();});
+  const mlcat=$("#mlcat");if(mlcat)mlcat.addEventListener("keydown",e=>{if(e.key==="Enter")maladd();});
+  $("#p-check").querySelectorAll("[data-mcatf]").forEach(el=>el.onclick=()=>{
+    const c=el.dataset.mcatf;
+    if(c==="__todas")malaCats=[];
+    else if(malaCats.includes(c))malaCats=malaCats.filter(x=>x!==c);
+    else malaCats=malaCats.concat([c]);
+    renderCheck();});
+  $("#p-check").querySelectorAll("[data-mtog]").forEach(b=>b.onclick=()=>{vibrar(10);
+    savePessoa(me,{mala:(meDoc().mala||[]).map(x=>x.id===b.dataset.mtog?Object.assign({},x,{ok:!x.ok}):x)});});
+  $("#p-check").querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>
+    savePessoa(me,{mala:(meDoc().mala||[]).filter(x=>x.id!==b.dataset.mdel)}));
+  $("#p-check").querySelectorAll("[data-medit]").forEach(b=>b.onclick=()=>{
+    const it=(meDoc().mala||[]).find(x=>x.id===b.dataset.medit);if(!it)return;
+    openModal("Editar item da mala",[
+      {id:"item",label:"Item",value:it.item,placeholder:"Ex.: carregador"},
+      {id:"cat",label:"Categoria",value:it.cat||"",placeholder:"Ex.: Eletrônicos"}
+    ],v=>{
+      if(!v.item.trim()){toast("Escreva o item");return false;}
+      savePessoa(me,{mala:(meDoc().mala||[]).map(x=>x.id===it.id?Object.assign({},x,{item:v.item.trim(),cat:v.cat.trim()}):x)});
+      toast("Item atualizado");},"Salvar");});
 }
 
 /* ---- 15. RACHA (despesas e acerto) --------------------- */
