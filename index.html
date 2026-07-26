@@ -64,6 +64,16 @@ a{color:var(--mun)}
 .iconbtn.on{border-color:var(--orange);color:var(--orange)}
 .iconbtn#viabtn.viaoff{border-color:var(--line2);color:var(--dim);position:relative}
 .iconbtn#viabtn.viaoff::after{content:"";position:absolute;left:3px;right:3px;top:50%;height:1.5px;background:var(--dim);transform:rotate(-20deg)}
+
+/* botão flutuante "+ gasto" (aparece no modo viagem) */
+.fab{position:fixed;z-index:45;right:16px;bottom:calc(70px + env(safe-area-inset-bottom));
+ width:54px;height:54px;border-radius:50%;border:none;background:var(--orange);color:#fff;
+ display:flex;align-items:center;justify-content:center;cursor:pointer;
+ box-shadow:0 6px 18px rgba(232,114,46,.45);transition:transform .12s ease,box-shadow .15s ease,opacity .2s ease}
+.fab:hover{transform:scale(1.06)}
+.fab:active{transform:scale(.94)}
+.fab:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+.fab.hidden{display:none}
 .me-chip{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line2);
  border-radius:99px;padding:4px 5px 4px 11px;font-size:12.5px;font-weight:700;white-space:nowrap}
 .me-chip button{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:99px;
@@ -259,6 +269,8 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .mais-ch{font-size:15px;line-height:1;transition:transform .2s ease}
 .mais-btn.aberto .mais-ch{transform:rotate(180deg)}
 .cofre-mais[hidden]{display:none}
+.plano-mais[hidden]{display:none}
+.cseg-hint{margin:8px 2px 12px;color:var(--muted);font-size:12px;line-height:1.4}
 
 /* meses do cofre */
 .mrow{display:flex;align-items:center;gap:10px;padding:8px 0}
@@ -478,6 +490,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
   body{max-width:none;padding:0 0 0 250px}
   body::before{height:0;background:none}
   /* barra inferior vira sidebar fixa à esquerda */
+  .fab{right:28px;bottom:28px;width:58px;height:58px}
   .nav{position:fixed;top:0;left:0;bottom:0;right:auto;width:250px;height:100vh;
     flex-direction:column;align-items:stretch;justify-content:flex-start;
     border-top:none;border-right:1px solid var(--line);padding:22px 14px;gap:5px;
@@ -640,6 +653,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 </div>
 
 <nav class="nav hidden" id="nav" aria-label="Navegação"></nav>
+<button id="fab" class="fab hidden" aria-label="Lançar um gasto rápido" title="Lançar um gasto"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 <div id="toast" class="toast" role="status"></div>
 <div id="modal"></div>
 
@@ -1366,6 +1380,7 @@ function animarNumeros(){
   });
 }
 $("#themebtn").onclick=toggleTheme;
+$("#fab").onclick=quickGasto;
 $("#viabtn").onclick=()=>{
   const seq={auto:"on",on:"off",off:"auto"},atual=viaMode(),novo=seq[atual]||"on";
   try{localStorage.setItem(LS.viamode,novo);}catch(e){}
@@ -1376,6 +1391,7 @@ $("#viabtn").onclick=()=>{
   syncViaBtn();
   buildNav();
   renderAll();
+  syncFab();
   requestAnimationFrame(animarNumeros);
 };
 function syncViaBtn(){
@@ -1492,6 +1508,7 @@ function renderHeader(){
     STATE.cur=el.dataset.cur;localStorage.setItem(LS.cur,STATE.cur);renderAll();requestAnimationFrame(animarNumeros);});
   $("#foot").textContent=c.nota||"";
   syncViaBtn();
+  syncFab();
 }
 
 /* ---- calculadora de câmbio ----------------------------- */
@@ -1915,6 +1932,32 @@ function celebrar(m){
    viagem, até hoje. Devolve orçamento diário, gasto acumulado, ritmo e
    se está acima/abaixo do esperado para o dia atual — mais útil que um
    total corrido, porque se ajusta conforme a viagem avança.           */
+/* ---- botão flutuante "+ gasto" (registro em 1 toque) --------------
+   Durante a viagem, cada toque a mais é atrito. Este atalho abre direto
+   o lançamento de um gasto já pago (realizado, datado de hoje) e salva —
+   o mesmo lugar que alimenta o cartão "Gasto da viagem" e a aba "Já
+   gastei". Aparece só no modo viagem, onde faz sentido. */
+function quickGasto(){
+  const me=STATE.me;if(!me)return;
+  openModal("Lancei um gasto",[
+    {id:"desc",label:"O que foi",value:"",placeholder:"Ex.: almoço, táxi, ingresso"},
+    {id:"cat",label:"Categoria",type:"cat",value:"Alimentação"},
+    {id:"valor",label:"Valor pago",type:"money",value:"",placeholder:"0,00"},
+    {id:"moeda",label:"Moeda",type:"select",options:["EUR","BRL","USD"],value:moedaDe(me)},
+    {id:"data",label:"Quando",type:"date",value:new Date().toISOString().slice(0,10)}
+  ],v=>{
+    if(!v.desc||v.valor<=0){toast("Preencha o que foi e o valor");return false;}
+    registrarCategoria(v.cat);
+    const arr=meusRealizados(me);
+    savePessoa(me,{realizados:arr.concat([{id:uid(),desc:v.desc,cat:v.cat,valor:v.valor,moeda:v.moeda,data:v.data}])});
+    vibrar(14);toast("Gasto lançado ✓");
+  },"Lançar");
+}
+function syncFab(){
+  const f=$("#fab");if(!f)return;
+  f.classList.toggle("hidden",!(STATE.me&&emViagem()));
+}
+
 function gastoVsPlano(me){
   const c=STATE.config, ini=ymd(c.inicio), fim=ymd(c.fim);
   const totDias=Math.max(1,Math.round((fim-ini)/86400000)+1);
@@ -2217,23 +2260,33 @@ function renderCustos(){_sujo.delete("custos");
 
   $("#p-custos").innerHTML=`
   <div class="card tight">
-    <div class="lbl">Plano financeiro completo</div>
-    <div class="disp money" style="font-size:30px;margin-top:2px">${fmt(tot+totPess)}</div>
-    <div class="kpis" style="margin-top:12px">
-      <div class="kpi"><div class="k">Seu plano total</div><div class="v money">${fmt(planoDe(me))}</div></div>
-      <div class="kpi ok"><div class="k">Sua meta de poupança</div><div class="v money">${fmt(orcamentoDe(me))}</div></div>
-    </div>
-    ${foraDaMeta(me)>0?`<div class="note">A diferença de <b>${fmt(foraDaMeta(me))}</b> é a sua passagem aérea, que fica fora da meta por ir parcelada no cartão.</div>`:""}
+    <div class="row"><div class="grow">
+      <div class="lbl">Sua viagem custa</div>
+      <div class="disp money" style="font-size:30px;margin-top:2px">${fmt(planoDe(me))}</div>
+      <div class="note" style="margin:3px 0 0">${fmt(orcamentoDe(me))} de meta${foraDaMeta(me)>0?` + ${fmt(foraDaMeta(me))} de passagem`:""}</div>
+    </div>${infoBtn("\u201cSua viagem custa\u201d = a sua parte nos custos do grupo + seus gastos pessoais + passagem. A meta é o que precisa estar guardado antes de embarcar; a passagem fica de fora por ir parcelada no cartão.")}</div>
+    ${emViagem()?(()=>{const c=cmp,pctR=c.plan>0?clamp(c.real/c.plan*100,0,100):0,ac=c.dif>0.5;
+      return `<div class="rail ${ac?"dgr":"ok"}" style="margin:12px 0 6px"><i style="width:${pctR}%"></i></div>
+      <div class="row"><div class="note" style="margin:0">Já gastei <b>${fmt(c.real)}</b> de ${fmt(c.plan)}</div>
+        <div class="note" style="margin:0 0 0 auto;color:${ac?"var(--danger)":"var(--ok)"}">${Math.abs(c.dif)<0.005?"em linha":(ac?fmt(c.dif)+" acima":fmt(-c.dif)+" abaixo")}</div></div>`;})():
+      `<div class="kpis" style="margin-top:12px">
+      <div class="kpi"><div class="k">Total do grupo</div><div class="v money">${fmt(tot+totPess)}</div></div>
+      <div class="kpi ok"><div class="k">Sua meta</div><div class="v money">${fmt(orcamentoDe(me))}</div></div>
+    </div>`}
   </div>
 
   <div class="seg" id="cseg">
     ${(emViagem()?
-      [["real","Realizados"],["meus","Outros Gastos"],["itens","Custos Gerais"],["grupo","Metas"]]:
-      [["grupo","Metas"],["itens","Custos Gerais"],["meus","Outros Gastos"],["real","Realizados"]]
+      [["real","Já gastei"],["meus","Meus gastos"],["itens","Itens"],["grupo","Plano"]]:
+      [["grupo","Plano"],["itens","Itens"],["meus","Meus gastos"],["real","Já gastei"]]
     ).map(t=>`<div data-v="${t[0]}" class="${custosView===t[0]?"on":""}">${t[1]}</div>`).join("")}
   </div>
+  <div class="cseg-hint note">${({grupo:"Plano: quanto a viagem custa para cada um e por categoria.",itens:"Itens: os custos do grupo (hospedagem, transporte…) e como são rateados.",meus:"Meus gastos: suas compras e extras pessoais, que entram só na sua meta.",real:"Já gastei: o que você já pagou de verdade, comparado com o plano."})[custosView]||""}</div>
 
   <div class="${custosView==="grupo"?"":"hidden"}">
+    <div class="note" style="margin:2px 0 10px">Seu total já está no resumo acima. Abra para comparar o plano de todos e ver por categoria.</div>
+    <button class="mais-btn" id="plano-mais-btn" aria-expanded="false" aria-controls="plano-mais"><span>Ver plano de todos e por categoria</span><span class="mais-ch">⌄</span></button>
+    <div class="plano-mais" id="plano-mais" hidden>
     <div class="dtwo">
     <div class="dcol">
     <div class="sect" style="margin-top:0">Total por pessoa<span class="r">o plano de cada um</span></div>
@@ -2257,6 +2310,7 @@ function renderCustos(){_sujo.delete("custos");
     </div>
     </div>
     </div>
+    </div><!-- /plano-mais -->
   </div>
 
   <div class="${custosView==="itens"?"":"hidden"}">
@@ -2326,6 +2380,13 @@ function renderCustos(){_sujo.delete("custos");
     renderCustos();
     const seg=$("#cseg");if(seg)seg.scrollLeft=sl;});
   const ga=$("#goadm");if(ga)ga.onclick=()=>{show("admin");admView="custos";renderAdmin();};
+  const pmB=$("#plano-mais-btn"),pmBox=$("#plano-mais");
+  if(pmB&&pmBox)pmB.onclick=()=>{
+    const abrir=pmBox.hidden;pmBox.hidden=!abrir;
+    pmB.setAttribute("aria-expanded",abrir?"true":"false");pmB.classList.toggle("aberto",abrir);
+    pmB.querySelector("span").textContent=abrir?"Ocultar plano de todos":"Ver plano de todos e por categoria";
+    if(abrir)requestAnimationFrame(animarNumeros);
+  };
 
   const gastoModal=(x)=>openModal(x?"Editar gasto":"Gasto individual",[
     {id:"desc",label:"O que é",value:x?x.desc:"",placeholder:"Ex.: camisa do Bayern"},
