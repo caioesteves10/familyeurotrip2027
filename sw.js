@@ -5,12 +5,13 @@
    - NUNCA intercepta o tráfego do Firestore: ele tem o próprio mecanismo offline
    Ao publicar uma versão nova, troque o número em VERSAO abaixo.            */
 
-const VERSAO = "resenha-v2";
+const VERSAO = "resenha-v4";
 const CACHE_APP = "app-" + VERSAO;
 const CACHE_EXT = "ext-" + VERSAO;
 
 /* arquivos do próprio site */
-const CASCO = ["./", "./index.html", "./config.js", "./manifest.json", "./icon.png"];
+const CASCO = ["./", "./index.html", "./config.js", "./manifest.json",
+                "./icon.png", "./icon-192.png", "./icon-512.png"];
 
 /* domínios externos que valem a pena guardar (fontes e SDK do Firebase) */
 const EXTERNOS = ["fonts.googleapis.com", "fonts.gstatic.com", "www.gstatic.com"];

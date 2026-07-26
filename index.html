@@ -372,6 +372,10 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
  background:var(--navy);color:#fff;font-weight:800;padding:11px 18px;border-radius:12px;font-size:13.5px;
  box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:99;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:88vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-5px)}
+.toast.comacao{display:flex;align-items:center;gap:12px;pointer-events:auto;text-align:left;padding:9px 9px 9px 16px}
+.toast .undo{background:var(--orange);color:#fff;border:none;border-radius:9px;padding:8px 14px;
+ font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;flex:0 0 auto}
+.toast .undo:active{transform:scale(.94)}
 
 .modal{position:fixed;inset:0;z-index:80;background:rgba(18,29,50,.5);display:flex;align-items:flex-end;justify-content:center}
 .modal .box{background:var(--bg);border:1px solid var(--line2);border-top-left-radius:20px;border-top-right-radius:20px;
@@ -807,7 +811,28 @@ function parseMoney(s){
   else if(t.indexOf(",")>-1)t=t.replace(",",".");
   const n=parseFloat(t);return isNaN(n)?0:n;
 }
-function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast._i);toast._i=setTimeout(()=>t.classList.remove("show"),2100);}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.remove("comacao");t.classList.add("show");clearTimeout(toast._i);toast._i=setTimeout(()=>t.classList.remove("show"),2100);}
+/* ---- desfazer exclusões -------------------------------------------
+   Excluir é imediato e não tinha volta. Agora todo apagar mostra um toast
+   com "Desfazer" por alguns segundos, que recoloca o item onde estava.   */
+function toastUndo(msg,desfazer,ms){
+  const t=$("#toast");if(!t)return;
+  clearTimeout(toast._i);
+  t.innerHTML="";
+  const s=document.createElement("span");s.textContent=msg;
+  const b=document.createElement("button");b.className="undo";b.textContent="Desfazer";
+  t.appendChild(s);t.appendChild(b);
+  t.classList.add("show","comacao");
+  const fechar=()=>{t.classList.remove("show","comacao");};
+  b.onclick=()=>{clearTimeout(toast._i);fechar();vibrar(10);try{desfazer();}catch(e){console.error(e);}};
+  toast._i=setTimeout(fechar,ms||6000);
+}
+/* recoloca um item na posição original de um array */
+function reinserir(arr,item,idx){
+  const c=(arr||[]).slice();
+  c.splice(Math.max(0,Math.min(c.length,idx==null?c.length:idx)),0,item);
+  return c;
+}
 function isAdmin(){return localStorage.getItem(LS.admin)==="1";}
 function cityOf(k){return (STATE.config.cidades||[]).find(c=>c.k===k)||{k:k,n:"—"};}
 const sameDay=(base)=>String(base).slice(0,10)===new Date().toISOString().slice(0,10);
@@ -1745,8 +1770,10 @@ function renderCofre(){_sujo.delete("cofre");
     vibrar(18);toast("Mês fechado 🎉");};
   const dp=$("#dpadd");if(dp)dp.onclick=()=>depositoModal(0);
   $("#p-cofre").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
-    if(!confirm("Excluir este depósito?"))return;
-    savePessoa(me,{depositos:(meDoc().depositos||[]).filter(x=>x.id!==b.dataset.del)});});
+    const arr=(meDoc().depositos||[]),i=arr.findIndex(x=>x.id===b.dataset.del),it=arr[i];
+    if(!it)return;
+    savePessoa(me,{depositos:arr.filter(x=>x.id!==it.id)});
+    toastUndo("Depósito excluído",()=>savePessoa(me,{depositos:reinserir(meDoc().depositos||[],it,i)}));});
   $("#p-cofre").querySelectorAll("[data-dedit]").forEach(b=>b.onclick=()=>{
     const dep=(meDoc().depositos||[]).find(x=>x.id===b.dataset.dedit);if(!dep)return;
     openModal("Editar depósito",[
@@ -1922,8 +1949,11 @@ function renderCustos(){_sujo.delete("custos");
   $("#pgadd").onclick=()=>gastoModal(null);
   $("#p-custos").querySelectorAll("[data-pedit]").forEach(b=>b.onclick=()=>
     gastoModal((meDoc().pessoais||[]).find(i=>i.id===b.dataset.pedit)));
-  $("#p-custos").querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>
-    savePessoa(me,{pessoais:(meDoc().pessoais||[]).filter(x=>x.id!==b.dataset.pdel)}));
+  $("#p-custos").querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{
+    const arr=(meDoc().pessoais||[]),i=arr.findIndex(x=>x.id===b.dataset.pdel),it=arr[i];
+    if(!it)return;
+    savePessoa(me,{pessoais:arr.filter(x=>x.id!==it.id)});
+    toastUndo("Gasto excluído",()=>savePessoa(me,{pessoais:reinserir(meDoc().pessoais||[],it,i)}));});
 
   const relModal=(x)=>openModal(x?"Editar realizado":"Gasto realizado",[
     {id:"desc",label:"O que foi pago",value:x?x.desc:"",placeholder:"Ex.: passagem aérea"},
@@ -2184,8 +2214,11 @@ function renderCompras(){_sujo.delete("compras");
     toast("Item na lista");},"Adicionar");
   $("#p-compras").querySelectorAll("[data-ctog]").forEach(b=>b.onclick=()=>
     savePessoa(me,{compras:(meDoc().compras||[]).map(x=>x.id===b.dataset.ctog?Object.assign({},x,{ok:!x.ok}):x)}));
-  $("#p-compras").querySelectorAll("[data-cdel]").forEach(b=>b.onclick=()=>
-    savePessoa(me,{compras:(meDoc().compras||[]).filter(x=>x.id!==b.dataset.cdel)}));
+  $("#p-compras").querySelectorAll("[data-cdel]").forEach(b=>b.onclick=()=>{
+    const arr=(meDoc().compras||[]),i=arr.findIndex(x=>x.id===b.dataset.cdel),it=arr[i];
+    if(!it)return;
+    savePessoa(me,{compras:arr.filter(x=>x.id!==it.id)});
+    toastUndo("Item excluído",()=>savePessoa(me,{compras:reinserir(meDoc().compras||[],it,i)}));});
   $("#p-compras").querySelectorAll("[data-cedit]").forEach(b=>b.onclick=()=>{
     const cid=b.dataset.cedit;
     const it=(meDoc().compras||[]).find(x=>x.id===cid);if(!it)return;
@@ -2340,8 +2373,11 @@ function renderCheck(){_sujo.delete("check");
     toast(novos.length+(novos.length===1?" item adicionado":" itens adicionados"));};
   $("#p-check").querySelectorAll("[data-ktog]").forEach(b=>b.onclick=()=>
     savePessoa(me,{checklist:(meDoc().checklist||[]).map(x=>x.id===b.dataset.ktog?Object.assign({},x,{ok:!x.ok}):x)}));
-  $("#p-check").querySelectorAll("[data-kdel]").forEach(b=>b.onclick=()=>
-    savePessoa(me,{checklist:(meDoc().checklist||[]).filter(x=>x.id!==b.dataset.kdel)}));
+  $("#p-check").querySelectorAll("[data-kdel]").forEach(b=>b.onclick=()=>{
+    const arr=(meDoc().checklist||[]),i=arr.findIndex(x=>x.id===b.dataset.kdel),it=arr[i];
+    if(!it)return;
+    savePessoa(me,{checklist:arr.filter(x=>x.id!==it.id)});
+    toastUndo("Item excluído",()=>savePessoa(me,{checklist:reinserir(meDoc().checklist||[],it,i)}));});
 
   // ---- Mala ----
   const maladd=()=>{
@@ -2361,8 +2397,11 @@ function renderCheck(){_sujo.delete("check");
     renderCheck();});
   $("#p-check").querySelectorAll("[data-mtog]").forEach(b=>b.onclick=()=>{vibrar(10);
     savePessoa(me,{mala:(meDoc().mala||[]).map(x=>x.id===b.dataset.mtog?Object.assign({},x,{ok:!x.ok}):x)});});
-  $("#p-check").querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>
-    savePessoa(me,{mala:(meDoc().mala||[]).filter(x=>x.id!==b.dataset.mdel)}));
+  $("#p-check").querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{
+    const arr=(meDoc().mala||[]),i=arr.findIndex(x=>x.id===b.dataset.mdel),it=arr[i];
+    if(!it)return;
+    savePessoa(me,{mala:arr.filter(x=>x.id!==it.id)});
+    toastUndo("Item tirado da mala",()=>savePessoa(me,{mala:reinserir(meDoc().mala||[],it,i)}));});
   $("#p-check").querySelectorAll("[data-medit]").forEach(b=>b.onclick=()=>{
     const it=(meDoc().mala||[]).find(x=>x.id===b.dataset.medit);if(!it)return;
     openModal("Editar item da mala",[
@@ -2540,8 +2579,10 @@ function renderRacha(){_sujo.delete("racha");
       addArr("racha","pagamentos",{id:uid(),de:t.de,para:t.para,valor:val,moeda:MOEDA_VIAGEM(),data:v.data||hoje});
       toast(val>=total-0.005?"Dívida quitada ✓":`Pagamento parcial de ${fmtMO(val)} registrado`);
     },"Registrar pagamento");});
-  $("#p-racha").querySelectorAll("[data-ddl]").forEach(b=>b.onclick=()=>
-    delArr("racha","despesas",(STATE.racha.despesas||[]).filter(x=>x.id===b.dataset.ddl)));
+  $("#p-racha").querySelectorAll("[data-ddl]").forEach(b=>b.onclick=()=>{
+    const it=(STATE.racha.despesas||[]).find(x=>x.id===b.dataset.ddl);if(!it)return;
+    delArr("racha","despesas",[it]);
+    toastUndo("Despesa excluída",()=>addArr("racha","despesas",[it]));});
   $("#p-racha").querySelectorAll("[data-dedt]").forEach(b=>b.onclick=()=>{
     const d=(STATE.racha.despesas||[]).find(x=>x.id===b.dataset.dedt);if(!d)return;
     openModal("Editar despesa",[
@@ -2556,8 +2597,10 @@ function renderRacha(){_sujo.delete("racha");
       if(!v.entre.length){toast("Escolha entre quem dividir");return false;}
       saveDoc("racha",{despesas:(STATE.racha.despesas||[]).map(x=>x.id===d.id?{id:d.id,desc:v.desc,valor:v.valor,moeda:v.moeda,pagou:v.pagou,entre:v.entre,data:v.data||hoje}:x)});
       toast("Despesa atualizada");},"Salvar");});
-  $("#p-racha").querySelectorAll("[data-pdl]").forEach(b=>b.onclick=()=>
-    delArr("racha","pagamentos",(STATE.racha.pagamentos||[]).filter(x=>x.id===b.dataset.pdl)));
+  $("#p-racha").querySelectorAll("[data-pdl]").forEach(b=>b.onclick=()=>{
+    const it=(STATE.racha.pagamentos||[]).find(x=>x.id===b.dataset.pdl);if(!it)return;
+    delArr("racha","pagamentos",[it]);
+    toastUndo("Pagamento excluído",()=>addArr("racha","pagamentos",[it]));});
 }
 
 /* ---- 16. ADMIN ----------------------------------------- */
