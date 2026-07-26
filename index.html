@@ -141,7 +141,8 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .seg div.on{background:var(--panel);color:var(--navy);box-shadow:var(--shadow)}
 .catfilter{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
 .catchip{font-size:12px;font-weight:700;color:var(--muted);background:var(--panel2);border:1px solid var(--line);
- border-radius:99px;padding:5px 12px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;white-space:nowrap}
+ border-radius:99px;padding:5px 12px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;white-space:nowrap;
+ display:inline-flex;align-items:center}
 .catchip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .catchip:active{transform:scale(.95)}
 /* faixa de "nova versão disponível" */
@@ -544,6 +545,28 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .hint:hover::after,.hint:focus::after{opacity:1;transform:translateX(-50%) translateY(0)}
 .hint:hover::before,.hint:focus::before{opacity:1}
 
+/* (i) explicativo e seu balão */
+.ibtn{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:5px;
+ padding:0;border:1px solid var(--line2);border-radius:50%;background:var(--panel);color:var(--dim);
+ font-size:10px;font-weight:800;font-family:Inter,sans-serif;line-height:1;cursor:pointer;vertical-align:middle;
+ font-style:normal;transition:background .15s,color .15s,border-color .15s}
+.ibtn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.ibtn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.ibtn:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.infopop{position:absolute;z-index:120;background:var(--navy);color:#fff;font-size:12px;font-weight:600;line-height:1.45;
+ padding:9px 12px;border-radius:10px;box-shadow:var(--shadowlg);max-width:240px;text-align:left;
+ opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;pointer-events:none}
+.infopop.show{opacity:1;transform:translateY(0)}
+.infopop::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);
+ border:6px solid transparent;border-top-color:var(--navy)}
+.infopop.baixo::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:var(--navy)}
+
+/* bolinha de cor por categoria (mínima) */
+.catdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:baseline;flex:0 0 auto}
+.td-cat{display:inline-flex;align-items:center}
+.catchip .catdot{margin-right:5px;width:7px;height:7px}
+.catchip.on .catdot{box-shadow:0 0 0 1.5px rgba(255,255,255,.5)}
+
 </style>
 </head>
 <body>
@@ -870,6 +893,61 @@ function parseMoney(s){
   const n=parseFloat(t);return isNaN(n)?0:n;
 }
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.remove("comacao");t.classList.add("show");clearTimeout(toast._i);toast._i=setTimeout(()=>t.classList.remove("show"),2100);}
+
+/* ---- (i) explicações dos "números mágicos" ------------------------
+   Um botão (i) pequeno e discreto ao lado de valores calculados. No
+   desktop dá pra passar o mouse; no celular (sem hover) o toque abre o
+   balãozinho — daí a lógica em JS, e não só CSS. Um balão por vez. */
+function infoBtn(texto){
+  return `<button class="ibtn" type="button" aria-label="Como isso é calculado?" data-info="${esc(texto)}">i</button>`;
+}
+function fecharInfo(){const p=document.getElementById("infopop");if(p)p.remove();document.querySelectorAll(".ibtn.on").forEach(b=>b.classList.remove("on"));}
+function abrirInfo(btn){
+  const jaAberto=btn.classList.contains("on");
+  fecharInfo();
+  if(jaAberto)return;
+  btn.classList.add("on");
+  const pop=document.createElement("div");
+  pop.id="infopop";pop.className="infopop";pop.setAttribute("role","tooltip");
+  pop.textContent=btn.dataset.info||"";
+  document.body.appendChild(pop);
+  const r=btn.getBoundingClientRect(),pw=Math.min(240,window.innerWidth-24);
+  pop.style.width=pw+"px";
+  let left=r.left+r.width/2-pw/2;
+  left=Math.max(12,Math.min(window.innerWidth-pw-12,left));
+  pop.style.left=Math.round(left)+"px";
+  // acima do botão; se não couber, abaixo
+  const ph=pop.offsetHeight;
+  let top=r.top-ph-8;
+  if(top<8){top=r.bottom+8;pop.classList.add("baixo");}
+  pop.style.top=Math.round(top+window.scrollY)+"px";
+  requestAnimationFrame(()=>pop.classList.add("show"));
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest&&e.target.closest(".ibtn");
+  if(b){e.preventDefault();e.stopPropagation();abrirInfo(b);return;}
+  if(!(e.target.closest&&e.target.closest(".infopop")))fecharInfo();
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")fecharInfo();});
+window.addEventListener("resize",fecharInfo);
+
+/* ---- cor por categoria (mínima, coerente com a paleta) -----------
+   Uma bolinha de cor por categoria — sem ícones, sem fundo colorido.
+   As 9 categorias-base têm tons fixos, escolhidos pra conversar com o
+   navy/laranja/azuis já usados; categorias criadas pelo usuário ganham
+   um tom estável derivado do nome (mesmo nome → mesma cor sempre).    */
+const CAT_COR={
+  "Passagens":"#E8722E","Hospedagem":"#1B3A6B","Transporte":"#3E82C4",
+  "Passeios":"#1E9E74","Alimentação":"#C6552B","Compras":"#8A6FB0",
+  "Seguro":"#5B7A99","Reserva":"#B08A2E","Outros":"#8B95A3","Geral":"#8B95A3"
+};
+function catColor(cat){
+  if(CAT_COR[cat])return CAT_COR[cat];
+  let h=0;const s=String(cat||"");for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;
+  const hue=h%360, hue2=(hue<45||hue>320)?(hue+90)%360:hue; // evita vermelho puro (reservado a erro)
+  return `hsl(${hue2} 42% 52%)`;
+}
+function catDot(cat){return `<span class="catdot" style="background:${catColor(cat)}" aria-hidden="true"></span>`;}
 /* ---- desfazer exclusões -------------------------------------------
    Excluir é imediato e não tinha volta. Agora todo apagar mostra um toast
    com "Desfazer" por alguns segundos, que recoloca o item onde estava.   */
@@ -1881,7 +1959,7 @@ function renderCofre(){_sujo.delete("cofre");
         <div class="lbl">Já guardei</div>
         <div class="big money count" data-count="${disp(sav).toFixed(0)}" data-pre="${STATE.cur==="BRL"?"R$ ":(STATE.cur==="USD"?"US$ ":"€ ")}" data-final="${fmt(sav)}">${fmt(sav)}</div>
         <div class="of">de ${fmt(meta)}${STATE.cur!=="EUR"?` · <b style="color:var(--mun)">≈ ${fmtCur(sav,"EUR")}</b>`:""}</div>
-        <div class="of" style="margin-top:2px"><span class="lnk" id="metaedit">${metaAuto(me)?"meta automática":"editar meta"}</span></div>
+        <div class="of" style="margin-top:2px"><span class="lnk" id="metaedit">${metaAuto(me)?"meta automática":"editar meta"}</span>${metaAuto(me)?infoBtn("Sua meta automática é a soma da sua parte nos custos compartilhados da viagem mais os seus gastos pessoais planejados. Toque em \u201cmeta automática\u201d para definir um valor manual."):""}</div>
       </div>
       <div class="pct">${pct.toFixed(0)}%</div>
     </div>
@@ -1900,11 +1978,11 @@ function renderCofre(){_sujo.delete("cofre");
       <div class="badge on">✓ completo</div></div>
      <div class="note" style="margin:10px 0 0">Você já tem o suficiente para a viagem. Depósitos daqui pra frente são extra.</div>`:
     (M.antes?
-    `<div class="row"><div class="grow"><div class="lbl">Vai precisar guardar por mês</div>
+    `<div class="row"><div class="grow"><div class="lbl">Vai precisar guardar por mês${infoBtn("É quanto falta para a sua meta dividido pelos meses até a viagem. Guardando esse valor por mês, você chega lá na hora certa.")}</div>
       <div class="disp money" style="font-size:27px;color:var(--ber)">${fmt(M.alvo)}</div></div>
       <div class="badge">a partir de ${monthLabel(iniPoup())}</div></div>
      <div class="note" style="margin:10px 0 0">São ${M.meses} meses de ${monthLabel(iniPoup())} até a viagem. Se quiser adiantar, pode guardar desde já.</div>`:
-    `<div class="row"><div class="grow"><div class="lbl">${M.ok?"Guardado este mês":"Preciso guardar este mês"}</div>
+    `<div class="row"><div class="grow"><div class="lbl">${M.ok?"Guardado este mês":"Preciso guardar este mês"}${M.ok?"":infoBtn("É quanto falta para a sua meta dividido pelos meses que restam até a viagem — a parcela deste mês. Fechou o mês? A partir do próximo o valor se ajusta sozinho.")}</div>
       <div class="disp money" style="font-size:27px;color:${M.ok?"var(--ok)":"var(--ber)"}">${M.ok?fmt(M.guardado):fmt(M.alvo)}</div></div>
       <div class="badge ${M.ok?"on":""}">${M.ok?"✓ mês fechado":"pendente"}</div></div>
      <div class="rail ${M.ok?"ok":""}" style="margin:11px 0 6px"><i style="width:${M.pct}%"></i></div>
@@ -2061,7 +2139,7 @@ function renderCustos(){_sujo.delete("custos");
     <div class="card">
       <table class="tb"><thead><tr><th>Categoria</th><th>Total grupo</th><th>Você</th></tr></thead><tbody>
       ${Object.keys(cats).sort((x,y)=>cats[y].tot-cats[x].tot).map(c=>
-        `<tr><td>${esc(c)}</td><td class="money">${fmt(cats[c].tot)}</td><td class="money">${fmt(cats[c].meu)}</td></tr>`).join("")}
+        `<tr><td><span class="td-cat">${catDot(c)}${esc(c)}</span></td><td class="money">${fmt(cats[c].tot)}</td><td class="money">${fmt(cats[c].meu)}</td></tr>`).join("")}
       </tbody></table>
       <div class="note">Inclui os itens do grupo (sua parte no rateio) e os seus gastos individuais e compras. Cada um vê a própria coluna.</div>
     </div>
@@ -2088,7 +2166,7 @@ function renderCustos(){_sujo.delete("custos");
       if(!catsPess.length)return "";
       outrosCats=outrosCats.filter(c=>catsPess.includes(c)); // remove categorias que sumiram
       return `<div class="catfilter"><span class="catchip ${outrosCats.length===0?"on":""}" data-catf="__todas">Todas</span>`+
-        catsPess.map(c=>`<span class="catchip ${outrosCats.includes(c)?"on":""}" data-catf="${esc(c)}">${esc(c)}</span>`).join("")+`</div>`;
+        catsPess.map(c=>`<span class="catchip ${outrosCats.includes(c)?"on":""}" data-catf="${esc(c)}">${catDot(c)}${esc(c)}</span>`).join("")+`</div>`;
     })()}
     ${(()=>{
       const lista=outrosCats.length?pess.filter(x=>outrosCats.includes(x.cat||(x.de==="Compras"?"Compras":"Outros"))):pess;
@@ -2535,12 +2613,12 @@ function renderCheck(){_sujo.delete("check");
       </div>
     </div>
 
-    ${catsMala.length?`<div class="catfilter">${["__todas"].concat(catsMala).map(c=>`<span class="catchip ${(c==="__todas"?malaCats.length===0:malaCats.includes(c))?"on":""}" data-mcatf="${esc(c)}">${c==="__todas"?"Todas":esc(c)}</span>`).join("")}</div>`:""}
+    ${catsMala.length?`<div class="catfilter">${["__todas"].concat(catsMala).map(c=>`<span class="catchip ${(c==="__todas"?malaCats.length===0:malaCats.includes(c))?"on":""}" data-mcatf="${esc(c)}">${c==="__todas"?"Todas":catDot(c)+esc(c)}</span>`).join("")}</div>`:""}
 
     ${mFalta.length?`<div class="sect">Ainda na lista<span class="r">${mFalta.length}</span></div>`+
       mFalta.map(i=>`<div class="li">
         <div class="tick" data-mtog="${i.id}" role="button" tabindex="0">✓</div>
-        <div class="t"><div class="n">${esc(i.item)}</div>${i.cat?`<div class="s">${esc(i.cat)}</div>`:""}</div>
+        <div class="t"><div class="n">${esc(i.item)}</div>${i.cat?`<div class="s">${catDot(i.cat)}${esc(i.cat)}</div>`:""}</div>
         <button class="x" data-medit="${i.id}" aria-label="Editar">✎</button>
         <button class="x" data-mdel="${i.id}" aria-label="Excluir">✕</button></div>`).join(""):
       (mala.length?`<div class="okbox">${malaCats.length?"Nada pendente nessas categorias.":"Tudo na mala! Pode fechar o zíper. 🧳"}</div>`:
@@ -2549,7 +2627,7 @@ function renderCheck(){_sujo.delete("check");
     ${mPronto.length?`<div class="sect">Já na mala<span class="r">${mPronto.length}</span></div>`+
       mPronto.map(i=>`<div class="li done">
         <div class="tick on" data-mtog="${i.id}" role="button" tabindex="0">✓</div>
-        <div class="t"><div class="n">${esc(i.item)}</div>${i.cat?`<div class="s">${esc(i.cat)}</div>`:""}</div>
+        <div class="t"><div class="n">${esc(i.item)}</div>${i.cat?`<div class="s">${catDot(i.cat)}${esc(i.cat)}</div>`:""}</div>
         <button class="x" data-mdel="${i.id}" aria-label="Excluir">✕</button></div>`).join(""):""}
     <div class="note">Marque conforme for colocando na mala. Categorias ajudam a não esquecer nada — e a lista é só sua.</div>
   </div>`;
@@ -2711,7 +2789,7 @@ function renderRacha(){_sujo.delete("racha");
 
   <div class="dtwo" style="margin-top:8px">
   <div class="dcol">
-  <div class="sect" style="margin-top:6px">Acerto final<span class="r">${trs.length?`<span class="lnk" id="rachashare">compartilhar</span>`:trs.length+" transferências"}</span></div>
+  <div class="sect" style="margin-top:6px">Acerto final${infoBtn("O app cruza quem deve e quem tem a receber e monta o menor número de transferências possível — em vez de todo mundo pagar todo mundo, cada um paga o mínimo de vezes. Valores em "+MOEDA_VIAGEM()+".")}<span class="r">${trs.length?`<span class="lnk" id="rachashare">compartilhar</span>`:trs.length+" transferências"}</span></div>
   ${trs.length?trs.map((t,i)=>`<div class="tr">
       <div class="who">${esc(t.de)}<span class="ar">→</span>${esc(t.para)}</div>
       <div class="v money">${fmtMO(t.v/100)}</div>
@@ -2721,7 +2799,7 @@ function renderRacha(){_sujo.delete("racha");
     '<div class="empty">Sem despesas ainda.<br>Durante a viagem, lance aqui quem pagou o quê.</div>')}
   </div>
   <div class="dcol">
-  <div class="sect" style="margin-top:6px">Saldo de cada um</div>
+  <div class="sect" style="margin-top:6px">Saldo de cada um${infoBtn("Verde (a receber) é quem pagou mais do que a sua parte; vermelho (a pagar) é quem pagou menos. A soma de todos os saldos dá zero.")}</div>
   <div class="card">
     ${PEOPLE.map(p=>{const v=(bal[p]||0)/100,w=Math.abs(bal[p]||0)/maxAbs*100;
       return `<div class="bal"><div class="n ${p===me?"":""}" style="${p===me?"color:var(--par)":""}">${esc(p)}</div>
