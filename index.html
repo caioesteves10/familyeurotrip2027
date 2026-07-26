@@ -959,6 +959,27 @@ async function saveDoc(id,obj){
   try{await FB.setDoc(FB.doc(db,NS.viagem,id),obj,{merge:true});}
   catch(e){console.error(e);toast("Erro ao salvar: "+String((e&&e.code)||(e&&e.message)||e).slice(0,60));}
 }
+/* ---- escritas atômicas em arrays compartilhados -------------------
+   Reescrever o array inteiro faz o último a salvar apagar o lançamento
+   do outro (dois na mesma mesa lançando ao mesmo tempo). arrayUnion e
+   arrayRemove são aplicados pelo servidor item a item, sem se atropelar. */
+async function addArr(id,campo,itens){
+  const lista=Array.isArray(itens)?itens:[itens];
+  STATE[id]=Object.assign({},STATE[id],{[campo]:((STATE[id]||{})[campo]||[]).concat(lista)});
+  renderAll();
+  if(MOCK){saveLocal();return;}
+  try{await FB.setDoc(FB.doc(db,NS.viagem,id),{[campo]:FB.arrayUnion.apply(null,lista)},{merge:true});}
+  catch(e){console.error(e);toast("Erro ao salvar: "+String((e&&e.code)||(e&&e.message)||e).slice(0,60));}
+}
+async function delArr(id,campo,itens){
+  const lista=Array.isArray(itens)?itens:[itens];
+  const ids=new Set(lista.map(x=>x&&x.id));
+  STATE[id]=Object.assign({},STATE[id],{[campo]:((STATE[id]||{})[campo]||[]).filter(x=>!ids.has(x.id))});
+  renderAll();
+  if(MOCK){saveLocal();return;}
+  try{await FB.setDoc(FB.doc(db,NS.viagem,id),{[campo]:FB.arrayRemove.apply(null,lista)},{merge:true});}
+  catch(e){console.error(e);toast("Erro ao excluir: "+String((e&&e.code)||(e&&e.message)||e).slice(0,60));}
+}
 async function savePessoa(nome,obj){
   STATE.pessoas[nome]=Object.assign({},STATE.pessoas[nome],obj);
   renderAll();
@@ -1085,7 +1106,9 @@ function applyTab(){
 function show(t){
   if(t!==curTab)window.scrollTo(0,0);
   const changed=t!==curTab;
-  curTab=t;localStorage.setItem(LS.tab,t);applyTab();
+  curTab=t;localStorage.setItem(LS.tab,t);
+  garantirPainel(t);   // redesenha o painel se ele ficou desatualizado
+  applyTab();
   if(changed)animarNumeros();
 }
 /* (6/3) anima os números financeiros do painel ativo para "contar" até o valor.
@@ -1158,6 +1181,19 @@ const metaAuto=p=>!(Number((STATE.pessoas[p]||{}).meta)>0);
 
 /* ---- 9. RENDER GERAL ----------------------------------- */
 let _rendering=false;
+/* ---- render seletivo ---------------------------------------------
+   Antes, qualquer mudança redesenhava os 7 painéis (inclusive o gráfico).
+   Agora só o painel visível é redesenhado; os outros ficam marcados como
+   "sujos" e se redesenham na hora em que você entra neles.              */
+const RENDERS={cofre:()=>renderCofre(),custos:()=>renderCustos(),roteiro:()=>renderRoteiro(),
+  compras:()=>renderCompras(),check:()=>renderCheck(),racha:()=>renderRacha(),admin:()=>renderAdmin()};
+const _sujo=new Set(Object.keys(RENDERS));
+function renderPainel(t){
+  const f=RENDERS[t];if(!f)return;
+  try{f();}catch(e){console.error("render "+t,e);}
+  _sujo.delete(t);
+}
+function garantirPainel(t){if(_sujo.has(t))renderPainel(t);}
 function renderAll(){
   if(!STATE.me||_rendering)return;
   _rendering=true;
@@ -1167,7 +1203,8 @@ function renderAll(){
   const aid=(!inModal&&ae&&ae.id)?ae.id:null, asel=aid?ae.selectionStart:null;
   const sy=window.scrollY;
   renderHeader();buildNav();
-  renderCofre();renderCustos();renderRoteiro();renderCompras();renderCheck();renderRacha();renderAdmin();
+  Object.keys(RENDERS).forEach(k=>_sujo.add(k)); // os dados mudaram: todos ficam sujos
+  renderPainel(curTab);                          // e só o visível é redesenhado agora
   _primeiraCarga=false;
   applyTab();
   window.scrollTo(0,sy);
@@ -1423,7 +1460,7 @@ function abrirRestaurante(){
     });
     if(!despesas.length){toast("Sem dívidas a lançar (cada um pagou a própria parte)");_restState=null;$("#modal").innerHTML="";return;}
     vibrar(16);
-    saveDoc("racha",{despesas:(STATE.racha.despesas||[]).concat(despesas)});
+    addArr("racha","despesas",despesas);
     _restState=null;$("#modal").innerHTML="";
     const n=despesas.length;
     toast(`${n} lançamento${n>1?"s":""} de restaurante no racha ✓`);
@@ -1615,7 +1652,7 @@ function celebrar(m){
     c.appendChild(p);}
   document.body.appendChild(c);setTimeout(()=>c.remove(),2200);
 }
-function renderCofre(){
+function renderCofre(){_sujo.delete("cofre");
   const me=STATE.me,d=meDoc();
   const meta=metaDe(me),sav=guardado(me),falta=Math.max(0,meta-sav);
   const pct=meta>0?clamp(sav/meta*100,0,100):0;
@@ -1742,7 +1779,7 @@ function comparativo(p){
 /* ---- 11. CUSTOS (orçamento) ---------------------------- */
 let custosView=localStorage.getItem("tr27_csub")||"grupo";
 let outrosCats=[];  // filtro de categorias na aba Outros Gastos (vazio = todas)
-function renderCustos(){
+function renderCustos(){_sujo.delete("custos");
   const me=STATE.me;
   const itens=custoItens();
   const pess=itensPessoais(me);
@@ -1963,6 +2000,22 @@ function openModal(title,fields,onSave,saveLabel){
 /* ---- 13. ROTEIRO --------------------------------------- */
 let roteiroBusca="";
 let roteiroCidade="";  // filtro de cidade ("" = todas)
+/* "feito" agora vive num mapa roteiro.feitos[idAtividade], gravado com merge:
+   dois marcando passeios diferentes ao mesmo tempo não se apagam. Ainda lê o
+   formato antigo (feito dentro do item) para não perder o que já foi marcado. */
+function feitoDe(a){
+  const m=(STATE.roteiro&&STATE.roteiro.feitos)||{};
+  return Object.prototype.hasOwnProperty.call(m,a.id)?!!m[a.id]:!!a.feito;
+}
+async function marcarFeito(ai,val){
+  const m=Object.assign({},(STATE.roteiro&&STATE.roteiro.feitos)||{});
+  m[ai]=!!val;
+  STATE.roteiro=Object.assign({},STATE.roteiro,{feitos:m});
+  renderAll();
+  if(MOCK){saveLocal();return;}
+  try{await FB.setDoc(FB.doc(db,NS.viagem,"roteiro"),{feitos:{[ai]:!!val}},{merge:true});}
+  catch(e){console.error(e);toast("Erro ao salvar: "+String((e&&e.code)||(e&&e.message)||e).slice(0,60));}
+}
 /* próximos passeios (não concluídos) a partir de agora, durante a viagem */
 function proximosPasseios(dias){
   const agora=new Date();
@@ -1970,7 +2023,7 @@ function proximosPasseios(dias){
   dias.forEach(d=>{
     const base=String(d.data).slice(0,10);
     (d.itens||[]).forEach(a=>{
-      if(a.feito)return;
+      if(feitoDe(a))return;
       let quando=new Date(base+"T"+((/^\d{1,2}:\d{2}$/.test(a.hora||"")?a.hora:"23:59"))+":00");
       out.push({dia:d,a:a,quando:quando,base:base});
     });
@@ -1978,7 +2031,7 @@ function proximosPasseios(dias){
   return out.filter(x=>x.quando>=new Date(agora.getTime()-3*3600*1000)) // tolera passeio em andamento (3h)
     .sort((x,y)=>x.quando-y.quando);
 }
-function renderRoteiro(){
+function renderRoteiro(){_sujo.delete("roteiro");
   let dias=(STATE.roteiro.dias||[]).slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)));
   const adm=isAdmin();
   const cityOpts=(STATE.config.cidades||[]).map(c=>({v:c.k,l:c.n}));
@@ -2012,7 +2065,7 @@ function renderRoteiro(){
   ${(emV&&diaHoje)?`<div class="hoje-card">
     <div class="lbl" style="color:#fff;opacity:.85">Hoje · ${fmtDate(diaHoje.data)}</div>
     <div class="disp" style="font-size:20px;margin:2px 0 8px">${esc(diaHoje.titulo||cityOf(diaHoje.cidade).n)}</div>
-    ${(diaHoje.itens||[]).length?(diaHoje.itens||[]).map(a=>`<div class="hoje-act ${a.feito?"done":""}"><b>${esc(a.hora||"—")}</b> ${esc(a.titulo)}</div>`).join(""):'<div class="hoje-act" style="opacity:.8">Dia livre — aproveitem!</div>'}
+    ${(diaHoje.itens||[]).length?(diaHoje.itens||[]).map(a=>`<div class="hoje-act ${feitoDe(a)?"done":""}"><b>${esc(a.hora||"—")}</b> ${esc(a.titulo)}</div>`).join(""):'<div class="hoje-act" style="opacity:.8">Dia livre — aproveitem!</div>'}
   </div>`:""}
   <div class="searchbar"><input id="rotbusca" placeholder="Buscar no roteiro…" value="${esc(roteiroBusca)}">${roteiroBusca?`<button id="rotlimpa" aria-label="Limpar">✕</button>`:""}</div>
   <div class="daygrid">
@@ -2023,8 +2076,8 @@ function renderRoteiro(){
       <div class="dh"><div class="d">${fmtDate(d.data)}</div><div class="c">${esc(c.n)}</div>
         <div class="grow" style="font-size:13px;color:var(--muted);font-weight:600">${esc(d.titulo||"")}</div>
         ${adm?`<button class="x" data-ddel="${d.id}" aria-label="Excluir dia">✕</button>`:""}</div>
-      ${(d.itens||[]).map(a=>`<div class="act ${a.feito?"act-done":""}">
-        ${emV?`<button class="actcheck ${a.feito?"on":""}" data-adone="${d.id}|${a.id}" aria-label="${a.feito?"Desmarcar":"Marcar como feito"}">${a.feito?"✓":""}</button>`:`<div class="h">${esc(a.hora||"—")}</div>`}
+      ${(d.itens||[]).map(a=>`<div class="act ${feitoDe(a)?"act-done":""}">
+        ${emV?`<button class="actcheck ${feitoDe(a)?"on":""}" data-adone="${d.id}|${a.id}" aria-label="${feitoDe(a)?"Desmarcar":"Marcar como feito"}">${feitoDe(a)?"✓":""}</button>`:`<div class="h">${esc(a.hora||"—")}</div>`}
         <div class="b"><div class="n">${emV&&a.hora&&a.hora!=="—"?`<span style="color:var(--dim);font-weight:700">${esc(a.hora)}</span> `:""}${esc(a.titulo)}</div>${a.nota?`<div class="s">${esc(a.nota)}</div>`:""}
           ${Number(a.valor)>0?`<div class="s"><b style="color:var(--ber)">${fmtIn(a.valor,a.moeda||"EUR")}</b> · ${(!Array.isArray(a.quem)||a.quem.length>=PEOPLE.length)?"todos":a.quem.map(esc).join(", ")} · ${fmt(toBRL(a.valor,a.moeda||"EUR")/((Array.isArray(a.quem)&&a.quem.length)?a.quem.length:PEOPLE.length))} cada</div>`:""}</div>
         ${adm?`<button class="x" data-adel="${d.id}|${a.id}" aria-label="Excluir">✕</button>`:""}</div>`).join("")}
@@ -2044,8 +2097,9 @@ function renderRoteiro(){
   $("#p-roteiro").querySelectorAll("[data-adone]").forEach(b=>b.onclick=()=>{
     const[di,ai]=b.dataset.adone.split("|");
     vibrar(12);
-    saveDoc("roteiro",{dias:(STATE.roteiro.dias||[]).map(d=>d.id===di?
-      Object.assign({},d,{itens:(d.itens||[]).map(a=>a.id===ai?Object.assign({},a,{feito:!a.feito}):a)}):d)});});
+    const dia=(STATE.roteiro.dias||[]).find(d=>d.id===di);
+    const at=dia&&(dia.itens||[]).find(a=>a.id===ai);
+    marcarFeito(ai,!(at?feitoDe(at):false));});
 
   const sb=$("#rotbusca");
   if(sb){sb.oninput=()=>{roteiroBusca=sb.value;const p=sb.selectionStart;renderRoteiro();const n=$("#rotbusca");if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};}
@@ -2085,7 +2139,7 @@ function renderRoteiro(){
 
 /* ---- 14. COMPRAS --------------------------------------- */
 let comprasBusca="";
-function renderCompras(){
+function renderCompras(){_sujo.delete("compras");
   const me=STATE.me;let compras=(meDoc().compras||[]);
   const qc=comprasBusca.trim().toLowerCase();
   const comprasAll=compras;
@@ -2148,7 +2202,7 @@ function renderCompras(){
 /* ---- 14b. CHECKLIST ------------------------------------ */
 let checkView=localStorage.getItem("tr27_check")||"geral";
 let malaCats=[]; // filtro de categorias na Mala
-function renderCheck(){
+function renderCheck(){_sujo.delete("check");
   const me=STATE.me,chk=(meDoc().checklist||[]);
   const nOk=chk.filter(i=>i.ok).length,pct=chk.length?Math.round(nOk/chk.length*100):0;
   const falta=chk.filter(i=>!i.ok),pronto=chk.filter(i=>i.ok);
@@ -2390,7 +2444,7 @@ function settle(bal){
   }
   return out.sort((x,y)=>y.v-x.v);
 }
-function renderRacha(){
+function renderRacha(){_sujo.delete("racha");
   const me=STATE.me;
   const desp=(STATE.racha.despesas||[]).slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
   const pags=(STATE.racha.pagamentos||[]).slice().reverse();
@@ -2468,7 +2522,7 @@ function renderRacha(){
   ],v=>{
     if(!v.desc||v.valor<=0){toast("Preencha descrição e valor");return false;}
     if(!v.entre.length){toast("Escolha entre quem dividir");return false;}
-    saveDoc("racha",{despesas:(STATE.racha.despesas||[]).concat([{id:uid(),desc:v.desc,valor:v.valor,moeda:v.moeda,pagou:v.pagou,entre:v.entre,data:v.data||hoje}])});
+    addArr("racha","despesas",{id:uid(),desc:v.desc,valor:v.valor,moeda:v.moeda,pagou:v.pagou,entre:v.entre,data:v.data||hoje});
     toast("Despesa lançada");},"Lançar");
   const drest=$("#dsrest");if(drest)drest.onclick=abrirRestaurante;
 
@@ -2483,11 +2537,11 @@ function renderRacha(){
       if(!(val>0)){toast("Informe um valor");return false;}
       if(val>total+0.005){toast(`Máximo desta dívida: ${fmtMO(total)}`);return false;}
       vibrar(14);
-      saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).concat([{id:uid(),de:t.de,para:t.para,valor:val,moeda:MOEDA_VIAGEM(),data:v.data||hoje}])});
+      addArr("racha","pagamentos",{id:uid(),de:t.de,para:t.para,valor:val,moeda:MOEDA_VIAGEM(),data:v.data||hoje});
       toast(val>=total-0.005?"Dívida quitada ✓":`Pagamento parcial de ${fmtMO(val)} registrado`);
     },"Registrar pagamento");});
   $("#p-racha").querySelectorAll("[data-ddl]").forEach(b=>b.onclick=()=>
-    saveDoc("racha",{despesas:(STATE.racha.despesas||[]).filter(x=>x.id!==b.dataset.ddl)}));
+    delArr("racha","despesas",(STATE.racha.despesas||[]).filter(x=>x.id===b.dataset.ddl)));
   $("#p-racha").querySelectorAll("[data-dedt]").forEach(b=>b.onclick=()=>{
     const d=(STATE.racha.despesas||[]).find(x=>x.id===b.dataset.dedt);if(!d)return;
     openModal("Editar despesa",[
@@ -2503,12 +2557,12 @@ function renderRacha(){
       saveDoc("racha",{despesas:(STATE.racha.despesas||[]).map(x=>x.id===d.id?{id:d.id,desc:v.desc,valor:v.valor,moeda:v.moeda,pagou:v.pagou,entre:v.entre,data:v.data||hoje}:x)});
       toast("Despesa atualizada");},"Salvar");});
   $("#p-racha").querySelectorAll("[data-pdl]").forEach(b=>b.onclick=()=>
-    saveDoc("racha",{pagamentos:(STATE.racha.pagamentos||[]).filter(x=>x.id!==b.dataset.pdl)}));
+    delArr("racha","pagamentos",(STATE.racha.pagamentos||[]).filter(x=>x.id===b.dataset.pdl)));
 }
 
 /* ---- 16. ADMIN ----------------------------------------- */
 let admView="custos";
-function renderAdmin(){
+function renderAdmin(){_sujo.delete("admin");
   const el=$("#p-admin");if(!el)return;
   if(!isAdmin()){
     el.innerHTML=`<div class="card"><div class="note" style="margin:0 0 10px">Área do admin: editar orçamento, roteiro, datas e câmbio.</div>
@@ -2588,6 +2642,15 @@ function renderAdmin(){
       <button class="btn dgr" id="rcustos" style="margin-top:9px">Restaurar orçamento sugerido</button>
     </div>
 
+    <div class="sect">Backup</div>
+    <div class="card">
+      <div class="note" style="margin:0 0 10px">Baixa um arquivo com <b>tudo</b>: orçamento, roteiro, racha, e as listas e depósitos de cada pessoa. Vale guardar uma cópia antes da viagem.</div>
+      <button class="btn" id="bkexp">Baixar backup (.json)</button>
+      <button class="btn gh" id="bkimpbtn" style="margin-top:9px">Restaurar de um arquivo…</button>
+      <input type="file" id="bkimp" accept="application/json,.json" style="display:none">
+      <div class="note">Restaurar <b>substitui</b> os dados atuais de todo mundo pelo conteúdo do arquivo. Use só se algo der errado.</div>
+    </div>
+
     <div class="sect">Checklist master<span class="r">${checklistMaster().length} itens</span></div>
     <div class="card">
       <div class="note" style="margin:0 0 10px">Esta é a lista que cada pessoa puxa para dentro da própria conta. Editar aqui <b>não</b> altera as listas de quem já puxou — só muda o que aparece para quem puxar a partir de agora.</div>
@@ -2647,6 +2710,40 @@ function renderAdmin(){
     if(atual.length<=1){toast("Deixe ao menos uma cidade");return;}
     if(!confirm(`Remover ${atual[i].n} do topo?`))return;
     atual.splice(i,1);saveDoc("config",{cidades:atual});toast("Cidade removida");});
+  /* ---- backup: baixar tudo / restaurar de um arquivo ---- */
+  const bke=$("#bkexp");
+  if(bke)bke.onclick=()=>{
+    const dump={app:"Resenha Trip",formato:1,quando:new Date().toISOString(),
+      config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,pessoas:STATE.pessoas};
+    try{
+      const blob=new Blob([JSON.stringify(dump,null,2)],{type:"application/json"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download="resenha-trip-backup-"+new Date().toISOString().slice(0,10)+".json";
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+      toast("Backup baixado ✓");
+    }catch(e){console.error(e);toast("Não consegui gerar o arquivo");}
+  };
+  const bib=$("#bkimpbtn"),bif=$("#bkimp");
+  if(bib&&bif){
+    bib.onclick=()=>bif.click();
+    bif.onchange=async()=>{
+      const f=bif.files&&bif.files[0];if(!f)return;
+      let o=null;
+      try{o=JSON.parse(await f.text());}catch(e){toast("Arquivo inválido");bif.value="";return;}
+      if(!o||!o.config||!o.pessoas){toast("Não parece um backup deste app");bif.value="";return;}
+      const quando=o.quando?String(o.quando).slice(0,10):"data desconhecida";
+      if(!confirm("Restaurar o backup de "+quando+"?\n\nIsso substitui os dados atuais de TODAS as pessoas.")){bif.value="";return;}
+      if(!confirm("Tem certeza? Não dá para desfazer.")){bif.value="";return;}
+      saveDoc("config",o.config);
+      saveDoc("roteiro",o.roteiro||{dias:[]});
+      saveDoc("custos",o.custos||{itens:[]});
+      saveDoc("racha",o.racha||{despesas:[],pagamentos:[]});
+      PEOPLE.forEach(p=>{if(o.pessoas[p])savePessoa(p,o.pessoas[p]);});
+      bif.value="";toast("Backup restaurado ✓");
+    };
+  }
   const ao=$("#aout");
   if(ao)ao.onclick=()=>{localStorage.removeItem(LS.admin);show("cofre");renderAll();toast("Modo admin desligado");};
   const rz=$("#rzerar");
