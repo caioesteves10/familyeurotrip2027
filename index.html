@@ -294,6 +294,45 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .hoje-card{background:var(--navy);color:#fff;border-radius:16px;padding:15px 16px;margin-bottom:10px;box-shadow:var(--shadowlg)}
 .hoje-act{font-size:13.5px;padding:4px 0;border-top:1px solid rgba(255,255,255,.14)}
 .hoje-act:first-of-type{border-top:none}
+
+/* ---------- aba Início (resumo) ---------- */
+.ini-hero{position:relative;background:var(--stripbg);color:var(--striptext);border-radius:var(--r);
+ padding:18px 18px 16px;margin-bottom:11px;overflow:hidden;box-shadow:var(--shadowlg)}
+.ini-hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--orange)}
+.ini-hero.viax::before{background:var(--ok)}
+.ini-hero-lbl{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:800;color:rgba(255,255,255,.6)}
+.ini-hero-big{display:flex;align-items:baseline;gap:9px;margin-top:6px;flex-wrap:wrap}
+.ini-hero-n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:46px;line-height:1;color:var(--par);letter-spacing:-.02em}
+.ini-hero.viax .ini-hero-n{color:#fff}
+.ini-hero-u{font-size:14px;font-weight:700;color:rgba(255,255,255,.85)}
+.ini-hero-sub{margin-top:8px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.72)}
+.ini-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;margin-bottom:9px;
+ box-shadow:var(--shadow);cursor:pointer;transition:transform .08s ease,border-color .15s ease}
+.ini-card:active{transform:scale(.99)}
+.ini-card:hover{border-color:var(--line2)}
+.ini-card:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.ini-h{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.ini-ic{width:19px;height:19px;flex:0 0 auto;display:flex;color:var(--muted)}
+.ini-ic svg{width:19px;height:19px}
+.ini-t{font-size:11px;letter-spacing:.13em;text-transform:uppercase;font-weight:800;color:var(--muted)}
+.ini-go{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--dim)}
+.ini-big{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:21px;line-height:1.12;letter-spacing:-.01em}
+.ini-sub{margin-top:4px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.ini-row{display:flex;align-items:center;gap:10px}
+.ini-line{flex:1;min-width:0;font-size:15px;font-weight:600}
+.ini-line b{color:var(--text)}
+.ini-line.ini-ok{color:var(--ok);font-weight:700}
+.ini-line.ini-dgr b{color:var(--danger)}
+.ini-pct{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:22px;color:var(--par);line-height:1}
+.ini-pct.ok{color:var(--ok)}
+
+/* ---------- onboarding (dicas) ---------- */
+.intro-list{display:flex;flex-direction:column;gap:11px;margin-top:4px}
+.intro-it{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--text)}
+.intro-ic{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);
+ display:flex;align-items:center;justify-content:center;color:var(--orange)}
+.intro-ic svg{width:19px;height:19px}
+.intro-it b{color:var(--navy);font-weight:800}
 .searchbar{position:relative;margin-bottom:10px}
 .searchbar input{width:100%;padding-right:38px}
 .searchbar button{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:99px;width:26px;height:26px;cursor:pointer}
@@ -454,6 +493,13 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
   /* (2) roteiro em coluna única (mais senso de continuidade na linha do tempo) */
   .daygrid{column-count:1}
 
+  /* Início: hero largo + cartões-resumo em duas colunas */
+  #p-inicio{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  #p-inicio .ini-hero{grid-column:1 / -1;margin-bottom:0;padding:24px 26px}
+  #p-inicio .ini-hero-n{font-size:56px}
+  #p-inicio .ini-card{margin-bottom:0}
+  #p-inicio .note{grid-column:1 / -1;margin-top:0}
+
   /* (1) resumo fixo no rodapé da sidebar */
   .nav .navsum{display:block;margin-top:auto;padding:14px 12px 4px;border-top:1px solid var(--line);flex:0 0 auto}
   .nav .navsum-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);font-weight:700;padding:0}
@@ -529,6 +575,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
     <div id="offbar" class="warnbox hidden"></div>
     <div id="syncbar" class="hidden"></div>
 
+    <section class="panel-v" id="p-inicio"></section>
     <section class="panel-v" id="p-cofre"></section>
     <section class="panel-v" id="p-custos"></section>
     <section class="panel-v" id="p-roteiro"></section>
@@ -704,7 +751,7 @@ const checarAdmin=v=>conferir(ADMIN_HASH,v,ADMIN_PIN);
 
 /* ---- 3. ESTADO ----------------------------------------- */
 let db=null, FB=null, MOCK=false, PERSIST_OK=false;
-const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur",csub:"tr27_csub"};
+const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur",csub:"tr27_csub",intro:"tr27_intro"};
 const STATE={
   config:JSON.parse(JSON.stringify(SEED.config)),
   roteiro:JSON.parse(JSON.stringify(SEED.roteiro)),
@@ -1055,6 +1102,7 @@ function abrirPerfil(){
     <button class="btn sec pf" id="pf-tema">${escuro?"☀️ Tema claro":"🌙 Tema escuro"}</button>
     <button class="btn sec pf" id="pf-meta">🎯 Minha meta de poupança</button>
     <button class="btn sec pf" id="pf-moeda">💱 Moeda: ${STATE.cur}</button>
+    <button class="btn sec pf" id="pf-ajuda">❓ Como usar o app</button>
     <button class="btn gh pf" id="pf-sair" style="color:var(--danger)">Trocar de usuário</button>
     <button class="btn gh pf" id="pf-fechar">Fechar</button>
   </div></div>`;
@@ -1065,7 +1113,38 @@ function abrirPerfil(){
   $("#pf-sair").onclick=()=>{close();localStorage.removeItem(LS.me);STATE.me=null;showLogin();};
   $("#pf-moeda").onclick=()=>{const o=["BRL","USD","EUR"];STATE.cur=o[(o.indexOf(STATE.cur)+1)%3];localStorage.setItem(LS.cur,STATE.cur);close();renderAll();};
   $("#pf-meta").onclick=()=>{close();show("cofre");renderCofre();setTimeout(()=>{const m=$("#metaedit");if(m)m.click();},80);};
+  $("#pf-ajuda").onclick=()=>{close();mostrarIntro(true);};
 }
+/* ---- Onboarding: boas-vindas + dicas de recursos escondidos --------
+   Mostra uma vez por pessoa (guardado no aparelho). Reúne num só cartão
+   as funções que ninguém acha sozinho: os cartões-resumo do Início, o
+   arrastar entre abas, o divisor de conta de restaurante e o conversor
+   de moeda. Pode ser reaberto quando quiser pelo menu do perfil ("Como
+   usar o app"), então não é uma parede única que aparece e some. */
+const _temToque=(("ontouchstart" in window)||navigator.maxTouchPoints>0);
+function mostrarIntro(forcado){
+  if(!forcado){try{if(localStorage.getItem(LS.intro)==="1")return;}catch(e){}}
+  const dicas=[
+    ["inicio",`<b>Início</b> reúne o resumo da viagem. Toque em qualquer cartão pra abrir a aba inteira.`],
+    ["roteiro",_temToque?`<b>Arraste pro lado</b> na tela pra pular de uma aba pra outra, sem usar o menu.`:`Use o menu à esquerda (ou as <b>setas do teclado</b> não — clique nas abas) pra navegar.`],
+    ["racha",`Foram comer juntos? Em <b>Racha</b>, o botão <b>Dividir restaurante</b> separa a conta por item, gorjeta e quem pagou.`],
+    ["custos",`Toque em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`]
+  ];
+  $("#modal").innerHTML=`<div class="modal"><div class="box">
+    <div class="kicker" style="text-align:center;margin-bottom:2px">Paris · Munique · Berlim</div>
+    <h3 style="text-align:center;font-size:22px">Bem-vindo${STATE.me?", "+esc(STATE.me):""}! 👋</h3>
+    <div class="note" style="text-align:center;margin:0 0 12px">Um tour rápido de 20 segundos pelos atalhos do app.</div>
+    <div class="intro-list">
+    ${dicas.map(d=>`<div class="intro-it"><span class="intro-ic">${svgIcon(d[0])}</span><span>${d[1]}</span></div>`).join("")}
+    </div>
+    <button class="btn" id="intro-ok" style="margin-top:14px">Começar a explorar</button>
+    <div class="note" style="text-align:center;margin-top:8px">Pode rever isso depois em <b>trocar › Como usar o app</b>.</div>
+  </div></div>`;
+  const fechar=()=>{try{localStorage.setItem(LS.intro,"1");}catch(e){}$("#modal").innerHTML="";};
+  $("#intro-ok").onclick=fechar;
+  $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)fechar();};
+}
+
 let _primeiraCarga=true;
 function skeleton(){
   return `<div class="card"><div class="sk sk-lg"></div><div class="sk sk-md"></div><div class="sk-row"><div class="sk sk-kpi"></div><div class="sk sk-kpi"></div></div></div>
@@ -1082,10 +1161,13 @@ function enterApp(){
   const tl=$("#tagline");if(tl&&STATE.me)tl.textContent=sd+", "+STATE.me;
   if(!STATE.cur){STATE.cur=moedaDe(STATE.me);localStorage.setItem(LS.cur,STATE.cur);}
   renderAll();
+  // onboarding só na primeiríssima vez neste aparelho (não atrapalha o carregamento)
+  setTimeout(()=>{try{if(localStorage.getItem(LS.intro)!=="1")mostrarIntro(false);}catch(e){}},700);
 }
 
 /* ---- 7. NAVEGAÇÃO -------------------------------------- */
 const ICON={
+  inicio:'<circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>',
   cofre:'<path d="M4 12a7 5 0 0 1 14 0v3a2 2 0 0 1-2 2h-1v2h-2v-2H9v2H7v-2.2A7 5 0 0 1 4 12Z"/><circle cx="14.5" cy="11.5" r="1" fill="currentColor" stroke="none"/><path d="M4 11c-1 0-1.5-1-1-2"/><path d="M11 7V5"/>',
   custos:'<path d="M6 3h9l3 3v15l-2-1.2L14 21l-2-1.2L10 21l-2-1.2L6 21V3Z"/><path d="M9 8h6M9 11.5h6M9 15h4"/>',
   roteiro:'<path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4Z"/><path d="M9 4v13M15 6.5v13"/>',
@@ -1095,11 +1177,11 @@ const ICON={
   admin:'<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/>'
 };
 const svgIcon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||""}</svg>`;
-const TABS_PRE=[["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["compras","Compras"],["check","Checklist"],["racha","Racha"]];
-const TABS_VIA=[["roteiro","Roteiro"],["racha","Racha"],["compras","Compras"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
+const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["compras","Compras"],["check","Checklist"],["racha","Racha"]];
+const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["racha","Racha"],["compras","Compras"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
 function emViagem(){const c=STATE.config;return daysTo(c.inicio)<=0&&daysTo(c.fim)>=0;}
 const TABS=()=>emViagem()?TABS_VIA:TABS_PRE;
-let curTab=localStorage.getItem(LS.tab)||"cofre";
+let curTab=localStorage.getItem(LS.tab)||"inicio";
 function buildNav(){
   let t=TABS().slice();
   if(isAdmin())t.push(["admin","Admin"]);
@@ -1210,7 +1292,7 @@ let _rendering=false;
    Antes, qualquer mudança redesenhava os 7 painéis (inclusive o gráfico).
    Agora só o painel visível é redesenhado; os outros ficam marcados como
    "sujos" e se redesenham na hora em que você entra neles.              */
-const RENDERS={cofre:()=>renderCofre(),custos:()=>renderCustos(),roteiro:()=>renderRoteiro(),
+const RENDERS={inicio:()=>renderInicio(),cofre:()=>renderCofre(),custos:()=>renderCustos(),roteiro:()=>renderRoteiro(),
   compras:()=>renderCompras(),check:()=>renderCheck(),racha:()=>renderRacha(),admin:()=>renderAdmin()};
 const _sujo=new Set(Object.keys(RENDERS));
 function renderPainel(t){
@@ -1677,6 +1759,88 @@ function celebrar(m){
     c.appendChild(p);}
   document.body.appendChild(c);setTimeout(()=>c.remove(),2200);
 }
+/* ---- 11b. INÍCIO (resumo simples da viagem) --------------------
+   Reúne num só lugar, em linguagem simples e sem tabelas, o que cada
+   pessoa precisa saber sem ter que caçar entre as abas: quanto falta
+   pra viagem, o próximo passeio, como está o cofre e o acerto de contas.
+   Cada bloco leva, num toque, pra aba correspondente. Não depende de
+   dados sincronizados pra desenhar a primeira tela (contagem regressiva
+   é calculada localmente), então é uma abertura acolhedora e robusta. */
+function renderInicio(){_sujo.delete("inicio");
+  const me=STATE.me, c=STATE.config;
+  const dIni=daysTo(c.inicio), dFim=daysTo(c.fim), emV=emViagem();
+  const cidades=(c.cidades||[]);
+
+  // ---- 1. status da viagem (contagem regressiva) ----
+  let statusBig,statusLbl,statusSub;
+  if(dIni>0){statusBig=dIni;statusLbl=dIni===1?"dia pra embarcar":"dias pra embarcar";
+    statusSub=cidades.map(x=>esc(x.n)).join(" · ");}
+  else if(dFim>=0){const diaN=Math.abs(Math.round((new Date()-ymd(c.inicio))/86400000))+1,tot=Math.round((ymd(c.fim)-ymd(c.inicio))/86400000)+1;
+    statusBig="✈";statusLbl="em viagem";statusSub=`Dia ${diaN} de ${tot}`;}
+  else{statusBig="✓";statusLbl="viagem concluída";statusSub="Que venha a próxima 🍂";}
+
+  // ---- 2. próximo passeio (ou primeira parada, antes da viagem) ----
+  const dias=(STATE.roteiro.dias||[]).slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)));
+  const prox=proximosPasseios(dias);
+  let roteiroCard;
+  if(prox.length){const p0=prox[0],cid=cityOf(p0.dia.cidade);
+    roteiroCard=`<div class="ini-card" data-goto="roteiro" role="button" tabindex="0">
+      <div class="ini-h"><span class="ini-ic">${svgIcon("roteiro")}</span><span class="ini-t">${emV?"Próximo passeio":"Começa a viagem"}</span><span class="ini-go">ver roteiro ›</span></div>
+      <div class="ini-big">${esc(p0.a.titulo)}</div>
+      <div class="ini-sub">${p0.a.hora&&p0.a.hora!=="—"?esc(p0.a.hora)+" · ":""}${esc(cid.n)}${sameDay(p0.base)?"":" · "+fmtDate(p0.base).slice(0,3)}</div>
+    </div>`;
+  }else{const d0=dias[0];
+    roteiroCard=`<div class="ini-card" data-goto="roteiro" role="button" tabindex="0">
+      <div class="ini-h"><span class="ini-ic">${svgIcon("roteiro")}</span><span class="ini-t">Roteiro</span><span class="ini-go">ver roteiro ›</span></div>
+      <div class="ini-big">${d0?esc(d0.titulo||cityOf(d0.cidade).n):"A montar"}</div>
+      <div class="ini-sub">${cidades.length?cidades.length+" cidades · "+cidades.map(x=>esc(x.n)).join(", "):"O admin monta os dias por aqui"}</div>
+    </div>`;
+  }
+
+  // ---- 3. meu cofre (uma linha + barra) ----
+  const meta=metaDe(me),sav=guardado(me),pctC=meta>0?clamp(sav/meta*100,0,100):0,doneC=sav>=meta&&meta>0;
+  const cofreCard=`<div class="ini-card" data-goto="cofre" role="button" tabindex="0">
+    <div class="ini-h"><span class="ini-ic">${svgIcon("cofre")}</span><span class="ini-t">Meu cofre</span><span class="ini-go">ver cofre ›</span></div>
+    <div class="ini-row"><div class="ini-line">${doneC?"Meta batida 🎉":"Já guardei <b>"+Math.round(pctC)+"%</b> da meta"}</div><div class="ini-pct ${doneC?"ok":""}">${Math.round(pctC)}%</div></div>
+    <div class="rail ${doneC?"ok":""}" style="margin:8px 0 2px"><i style="width:${pctC}%"></i></div>
+    <div class="ini-sub">${fmt(sav)} de ${fmt(meta)}</div>
+  </div>`;
+
+  // ---- 4. racha (quite / deve / a receber) ----
+  let rachaCard="";
+  {const bal=balances(),cents=bal[me]||0,fmtMO2=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:MOEDA_VIAGEM(),minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0);
+   let linha,tom;
+   if(Math.abs(cents)<1){linha="Você está quite ✓";tom="ok";}
+   else if(cents<0){linha=`Você deve <b>${fmtMO2(-cents/100)}</b>`;tom="dgr";}
+   else{linha=`Têm a te devolver <b>${fmtMO2(cents/100)}</b>`;tom="";}
+   const temMov=(STATE.racha.despesas||[]).length||(STATE.racha.pagamentos||[]).length;
+   rachaCard=`<div class="ini-card" data-goto="racha" role="button" tabindex="0">
+     <div class="ini-h"><span class="ini-ic">${svgIcon("racha")}</span><span class="ini-t">Divisão de contas</span><span class="ini-go">ver racha ›</span></div>
+     <div class="ini-line ini-${tom}">${temMov?linha:"Nada lançado ainda"}</div>
+     <div class="ini-sub">${temMov?"Toque para ver quem paga quem":"As despesas em comum entram aqui"}</div>
+   </div>`;
+  }
+
+  $("#p-inicio").innerHTML=`
+  <div class="ini-hero ${emV?"viax":""}">
+    <div class="ini-hero-lbl">${esc(c.nome||"Resenha Trip 2027")}</div>
+    <div class="ini-hero-big"><span class="ini-hero-n">${statusBig}</span> <span class="ini-hero-u">${statusLbl}</span></div>
+    <div class="ini-hero-sub">${statusSub}</div>
+  </div>
+  ${roteiroCard}
+  ${cofreCard}
+  ${rachaCard}
+  <div class="note" style="text-align:center;margin-top:4px">Toque em qualquer cartão para abrir a aba completa.</div>`;
+
+  // navegação: cada cartão abre a aba correspondente
+  $("#p-inicio").querySelectorAll("[data-goto]").forEach(el=>{
+    const ir=()=>show(el.dataset.goto);
+    el.onclick=ir;
+    el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();ir();}};
+  });
+  requestAnimationFrame(animarNumeros);
+}
+
 function renderCofre(){_sujo.delete("cofre");
   const me=STATE.me,d=meDoc();
   const meta=metaDe(me),sav=guardado(me),falta=Math.max(0,meta-sav);
