@@ -62,6 +62,8 @@ a{color:var(--mun)}
  width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;flex:0 0 auto}
 .iconbtn:active{background:var(--panel2)}
 .iconbtn.on{border-color:var(--orange);color:var(--orange)}
+.iconbtn#viabtn.viaoff{border-color:var(--line2);color:var(--dim);position:relative}
+.iconbtn#viabtn.viaoff::after{content:"";position:absolute;left:3px;right:3px;top:50%;height:1.5px;background:var(--dim);transform:rotate(-20deg)}
 .me-chip{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line2);
  border-radius:99px;padding:4px 5px 4px 11px;font-size:12.5px;font-weight:700;white-space:nowrap}
 .me-chip button{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:99px;
@@ -223,6 +225,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .rail i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;
  background:var(--orange);transition:width .5s cubic-bezier(.3,1,.4,1)}
 .rail.ok i{background:var(--ok)}
+.rail.dgr i{background:var(--danger)}
 .ticks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--dim);font-weight:700;letter-spacing:.08em;margin-bottom:2px}
 
 /* hero do cofre */
@@ -336,6 +339,19 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .ini-line.ini-dgr b{color:var(--danger)}
 .ini-pct{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:22px;color:var(--par);line-height:1}
 .ini-pct.ok{color:var(--ok)}
+.ini-big.money{font-family:'Bricolage Grotesque',Inter,sans-serif}
+.gd-day{text-align:center;flex:0 0 auto;padding-left:10px}
+.gd-day-n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--navy)}
+.gd-day-l{font-size:10.5px;font-weight:700;color:var(--muted);margin-top:1px}
+.gd-chart{display:flex;align-items:flex-end;gap:3px;height:34px;margin:8px 0 8px}
+.gd-bar{flex:1;min-width:2px;background:var(--line2);border-radius:2px 2px 0 0;transition:height .3s ease}
+.gd-bar.hoje{background:var(--orange)}
+.gd-bar.fut{background:var(--panel2);border:1px dashed var(--line2)}
+.ini-line-sm{font-size:12.5px;font-weight:600;color:var(--muted);line-height:1.4}
+.ini-line-sm b{color:var(--text)}
+.ini-line-sm.ini-ok{color:var(--ok)}
+.ini-line-sm.ini-dgr{color:var(--danger)}
+.ini-line-sm.ini-dgr b{color:var(--danger)}
 
 /* ---------- onboarding (dicas) ---------- */
 .intro-list{display:flex;flex-direction:column;gap:11px;margin-top:4px}
@@ -589,6 +605,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
     <div class="topbar">
       <span class="kicker" id="tagline">Viagem em família</span>
       <span class="me-chip"><span id="mename">—</span><button id="logout">trocar</button></span>
+      <button class="iconbtn" id="viabtn" title="Modo viagem" aria-label="Modo viagem"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3.2c.4-.9 1.6-.9 2 0l.3.8v5.3l7 4.1v1.9l-7-2.1v3.8l2 1.5v1.5l-3.3-1-3.3 1v-1.5l2-1.5v-3.8l-7 2.1v-1.9l7-4.1V4l.3-.8Z" fill="currentColor" stroke="none"/></svg></button>
       <button class="iconbtn" id="themebtn" title="Alternar tema" aria-label="Alternar tema"><svg id="themeic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></svg></button>
     <button class="iconbtn" id="adminkey" title="Área do admin" aria-label="Área do admin"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/></svg></button>
     </div>
@@ -785,7 +802,7 @@ const checarAdmin=v=>conferir(ADMIN_HASH,v,ADMIN_PIN);
 
 /* ---- 3. ESTADO ----------------------------------------- */
 let db=null, FB=null, MOCK=false, PERSIST_OK=false;
-const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur",csub:"tr27_csub",intro:"tr27_intro"};
+const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur",csub:"tr27_csub",intro:"tr27_intro",viamode:"tr27_viamode"};
 const STATE={
   config:JSON.parse(JSON.stringify(SEED.config)),
   roteiro:JSON.parse(JSON.stringify(SEED.roteiro)),
@@ -1279,7 +1296,10 @@ const ICON={
 const svgIcon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||""}</svg>`;
 const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["compras","Compras"],["check","Checklist"],["racha","Racha"]];
 const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["racha","Racha"],["compras","Compras"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
-function emViagem(){const c=STATE.config;return daysTo(c.inicio)<=0&&daysTo(c.fim)>=0;}
+function emViagemAuto(){const c=STATE.config;return daysTo(c.inicio)<=0&&daysTo(c.fim)>=0;}
+/* modo viagem: "auto" segue as datas; "on"/"off" forçam manualmente (por aparelho) */
+function viaMode(){try{return localStorage.getItem(LS.viamode)||"auto";}catch(e){return "auto";}}
+function emViagem(){const m=viaMode();return m==="on"?true:(m==="off"?false:emViagemAuto());}
 const TABS=()=>emViagem()?TABS_VIA:TABS_PRE;
 let curTab=localStorage.getItem(LS.tab)||"inicio";
 function buildNav(){
@@ -1346,6 +1366,27 @@ function animarNumeros(){
   });
 }
 $("#themebtn").onclick=toggleTheme;
+$("#viabtn").onclick=()=>{
+  const seq={auto:"on",on:"off",off:"auto"},atual=viaMode(),novo=seq[atual]||"on";
+  try{localStorage.setItem(LS.viamode,novo);}catch(e){}
+  // ao forçar modo viagem, permite que o auto-jump pra Roteiro volte a acontecer se quiser
+  const nomes={auto:"Modo viagem: automático (segue as datas)",on:"Modo viagem: ligado",off:"Modo viagem: desligado (planejamento)"};
+  toast(nomes[novo]);
+  vibrar(12);
+  syncViaBtn();
+  buildNav();
+  renderAll();
+  requestAnimationFrame(animarNumeros);
+};
+function syncViaBtn(){
+  const b=$("#viabtn");if(!b)return;
+  const m=viaMode(),ativo=emViagem();
+  b.classList.toggle("on",m!=="auto");        // laranja quando há override manual
+  b.classList.toggle("viaoff",m==="off");
+  b.dataset.mode=m;
+  b.title=m==="auto"?"Modo viagem: automático":(m==="on"?"Modo viagem: ligado":"Modo viagem: desligado");
+  b.setAttribute("aria-label",b.title);
+}
 $("#adminkey").onclick=()=>{show("admin");renderAdmin();if(!isAdmin())setTimeout(()=>{const i=$("#apin");if(i)i.focus();},60);};
 
 /* ---- 8. CÁLCULOS COMPARTILHADOS ------------------------ */
@@ -1450,6 +1491,7 @@ function renderHeader(){
   $("#fxline").querySelectorAll("[data-cur]").forEach(el=>el.onclick=()=>{
     STATE.cur=el.dataset.cur;localStorage.setItem(LS.cur,STATE.cur);renderAll();requestAnimationFrame(animarNumeros);});
   $("#foot").textContent=c.nota||"";
+  syncViaBtn();
 }
 
 /* ---- calculadora de câmbio ----------------------------- */
@@ -1866,6 +1908,47 @@ function celebrar(m){
    Cada bloco leva, num toque, pra aba correspondente. Não depende de
    dados sincronizados pra desenhar a primeira tela (contagem regressiva
    é calculada localmente), então é uma abertura acolhedora e robusta. */
+/* ---- gasto real vs. planejado (padrão TravelSpend) ----------------
+   O "orçamento" de referência é o plano de viagem da pessoa (parte nos
+   custos compartilhados + gastos pessoais) espalhado pelos dias da
+   viagem. O "real" é a soma dos gastos realizados datados dentro da
+   viagem, até hoje. Devolve orçamento diário, gasto acumulado, ritmo e
+   se está acima/abaixo do esperado para o dia atual — mais útil que um
+   total corrido, porque se ajusta conforme a viagem avança.           */
+function gastoVsPlano(me){
+  const c=STATE.config, ini=ymd(c.inicio), fim=ymd(c.fim);
+  const totDias=Math.max(1,Math.round((fim-ini)/86400000)+1);
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  // dia atual dentro da viagem (1..totDias); antes=0, depois=totDias
+  let diaAtual=Math.round((hoje-ini)/86400000)+1;
+  diaAtual=Math.max(0,Math.min(totDias,diaAtual));
+  const plano=planoDe(me);                 // orçamento total de viagem da pessoa (BRL)
+  const porDia=plano/totDias;
+  // realizados datados dentro da janela da viagem
+  const reals=(meusRealizados(me)||[]).filter(r=>{
+    const d=ymd(r.data); return d>=ini && d<=fim;
+  });
+  const gasto=reals.reduce((a,r)=>a+toBRL(r.valor,r.moeda),0);
+  const gastoAteHoje=reals.filter(r=>ymd(r.data)<=hoje).reduce((a,r)=>a+toBRL(r.valor,r.moeda),0);
+  const esperadoAteHoje=porDia*Math.max(0,Math.min(totDias,diaAtual));
+  const diff=gastoAteHoje-esperadoAteHoje;   // >0 acima do previsto
+  const diasCorridos=Math.max(1,Math.min(totDias,diaAtual));
+  const mediaDia=gastoAteHoje/diasCorridos;
+  const diasRestantes=Math.max(0,totDias-diaAtual);
+  const restante=Math.max(0,plano-gasto);
+  const sobraPorDia=diasRestantes>0?restante/diasRestantes:0;
+  // gasto por dia da viagem (para o mini-gráfico)
+  const porDiaArr=[];
+  for(let i=0;i<totDias;i++){
+    const dk=new Date(ini);dk.setDate(dk.getDate()+i);
+    const iso=dk.toISOString().slice(0,10);
+    const g=reals.filter(r=>String(r.data).slice(0,10)===iso).reduce((a,r)=>a+toBRL(r.valor,r.moeda),0);
+    porDiaArr.push(g);
+  }
+  return {totDias,diaAtual,plano,porDia,gasto,gastoAteHoje,esperadoAteHoje,diff,mediaDia,
+          diasRestantes,restante,sobraPorDia,porDiaArr,temReal:reals.length>0};
+}
+
 function renderInicio(){_sujo.delete("inicio");
   const me=STATE.me, c=STATE.config;
   const dIni=daysTo(c.inicio), dFim=daysTo(c.fim), emV=emViagem();
@@ -1921,22 +2004,51 @@ function renderInicio(){_sujo.delete("inicio");
    </div>`;
   }
 
+  // ---- 5. gasto do dia vs. planejado (só no modo viagem) ----
+  let gastoCard="";
+  if(emV){
+    const G=gastoVsPlano(me);
+    const acima=G.diff>0.5, tom=acima?"dgr":"ok";
+    const pctBar=G.plano>0?clamp(G.gasto/G.plano*100,0,100):0;
+    // mini-barras por dia (destaca o dia atual)
+    const maxDia=Math.max(1,...G.porDiaArr,G.porDia);
+    const barras=G.porDiaArr.map((g,i)=>{
+      const h=Math.round(g/maxDia*100),hoje=(i+1)===G.diaAtual,futuro=(i+1)>G.diaAtual;
+      return `<span class="gd-bar ${hoje?"hoje":""} ${futuro?"fut":""}" style="height:${Math.max(3,h)}%" title="Dia ${i+1}: ${fmt(g)}"></span>`;
+    }).join("");
+    const linhaRitmo = G.diaAtual<=0 ? `A viagem começa em breve — o previsto é ${fmt(G.porDia)}/dia.` :
+      (acima ? `Você está <b>${fmt(Math.abs(G.diff))}</b> acima do previsto até aqui.` :
+               `Você está dentro do previsto — <b>${fmt(Math.abs(G.diff))}</b> de folga.`);
+    gastoCard=`<div class="ini-card" data-goto="custos" role="button" tabindex="0">
+      <div class="ini-h"><span class="ini-ic">${svgIcon("custos")}</span><span class="ini-t">Gasto da viagem</span>${infoBtn("O previsto por dia é o seu plano de viagem dividido pelos dias. Comparamos o que você já gastou (lançado em Custos › Realizados) com o previsto até hoje.")}<span class="ini-go">ver custos ›</span></div>
+      <div class="ini-row">
+        <div class="grow"><div class="ini-big money">${fmt(G.gastoAteHoje)}</div>
+          <div class="ini-sub">de ${fmt(G.plano)} planejados${G.diasRestantes>0?` · ${fmt(G.sobraPorDia)}/dia restante`:""}</div></div>
+        <div class="gd-day"><div class="gd-day-n">${Math.max(0,G.diaAtual)}</div><div class="gd-day-l">de ${G.totDias}</div></div>
+      </div>
+      <div class="rail ${tom==="ok"?"ok":"dgr"}" style="margin:9px 0 4px"><i style="width:${pctBar}%"></i></div>
+      ${G.porDiaArr.some(g=>g>0)?`<div class="gd-chart">${barras}</div>`:""}
+      <div class="ini-line-sm ini-${tom}">${G.temReal?linhaRitmo:"Lance seus gastos em Custos › Realizados para acompanhar aqui."}</div>
+    </div>`;
+  }
+
   $("#p-inicio").innerHTML=`
   <div class="ini-hero ${emV?"viax":""}">
     <div class="ini-hero-lbl">${esc(c.nome||"Resenha Trip 2027")}</div>
     <div class="ini-hero-big"><span class="ini-hero-n">${statusBig}</span> <span class="ini-hero-u">${statusLbl}</span></div>
     <div class="ini-hero-sub">${statusSub}</div>
   </div>
+  ${gastoCard}
   ${roteiroCard}
   ${cofreCard}
   ${rachaCard}
   <div class="note" style="text-align:center;margin-top:4px">Toque em qualquer cartão para abrir a aba completa.</div>`;
 
-  // navegação: cada cartão abre a aba correspondente
+  // navegação: cada cartão abre a aba correspondente (menos ao tocar no (i))
   $("#p-inicio").querySelectorAll("[data-goto]").forEach(el=>{
-    const ir=()=>show(el.dataset.goto);
+    const ir=(e)=>{if(e&&e.target&&e.target.closest&&e.target.closest(".ibtn"))return;show(el.dataset.goto);};
     el.onclick=ir;
-    el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();ir();}};
+    el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();ir(e);}};
   });
   requestAnimationFrame(animarNumeros);
 }
