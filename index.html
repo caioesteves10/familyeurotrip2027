@@ -356,6 +356,12 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .gd-day-n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--navy)}
 .gd-day-l{font-size:10.5px;font-weight:700;color:var(--muted);margin-top:1px}
 .gd-chart{display:flex;align-items:flex-end;gap:3px;height:34px;margin:8px 0 8px}
+.gd-verba{display:flex;gap:8px;margin:6px 0 8px;padding:10px;background:var(--panel2);border-radius:12px}
+.gd-vcol{flex:1;text-align:center;min-width:0}
+.gd-vk{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.gd-vv{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:15px;margin-top:2px;white-space:nowrap}
+.gd-vhi{background:var(--panel);border-radius:9px;padding:2px 4px;box-shadow:var(--shadow)}
+.gd-vhi .gd-vv{color:var(--orange)}
 .gd-bar{flex:1;min-width:2px;background:var(--line2);border-radius:2px 2px 0 0;transition:height .3s ease}
 .gd-bar.hoje{background:var(--orange)}
 .gd-bar.fut{background:var(--panel2);border:1px dashed var(--line2)}
@@ -1129,7 +1135,7 @@ function listen(){
   doc1("racha","racha",SEED.racha);
   FB.onSnapshot(FB.collection(db,NS.pessoas),opts,s=>{
     PEOPLE.forEach(p=>{if(!STATE.pessoas[p])STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};});
-    s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[]};});
+    s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,verba:Number(v.verba)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[]};});
     marcarPend("pessoas",s.metadata);renderAll();});
   atualizarSync();
 }
@@ -1248,18 +1254,19 @@ function mostrarIntro(forcado){
   if(!forcado){try{if(localStorage.getItem(LS.intro)==="1")return;}catch(e){}}
   const desk=_ehDesktop();
   const abrir=desk?"Clique":"Toque";
+  const dicaVia=["via",`O botão <b>✈ no topo</b> liga o <b>modo viagem</b>: reorganiza as abas para o dia a dia e mostra seu gasto em tempo real. Tem 3 estados — automático (segue as datas), ligado e desligado.`];
   const dicas=desk?[
     ["inicio",`<b>Início</b> reúne o resumo da viagem. Clique em qualquer cartão pra abrir a aba inteira.`],
+    dicaVia,
     ["roteiro",`Use o <b>menu lateral à esquerda</b> pra ir de uma aba pra outra.`],
     ["racha",`Foram comer juntos? Em <b>Racha</b>, o botão <b>Dividir restaurante</b> separa a conta por item, gorjeta e quem pagou.`],
-    ["check",`Passe o <b>mouse sobre uma linha</b> pra ver os botões de <b>editar</b> e <b>excluir</b> — eles ficam escondidos até você chegar perto.`],
     ["custos",`Clique em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`]
   ]:[
     ["inicio",`<b>Início</b> reúne o resumo da viagem. Toque em qualquer cartão pra abrir a aba inteira.`],
+    dicaVia,
     ["roteiro",`<b>Arraste pro lado</b> na tela pra pular de uma aba pra outra, sem abrir o menu de baixo.`],
     ["racha",`Foram comer juntos? Em <b>Racha</b>, o botão <b>Dividir restaurante</b> separa a conta por item, gorjeta e quem pagou.`],
-    ["custos",`Toque em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`],
-    ["cofre",`<b>Puxe a tela pra baixo</b> a qualquer momento pra atualizar as cotações do câmbio.`]
+    ["custos",`Toque em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`]
   ];
   $("#modal").innerHTML=`<div class="modal"><div class="box">
     <div class="kicker" style="text-align:center;margin-bottom:2px">Paris · Munique · Berlim</div>
@@ -1298,6 +1305,7 @@ function enterApp(){
 
 /* ---- 7. NAVEGAÇÃO -------------------------------------- */
 const ICON={
+  via:'<path d="M10.5 3.2c.4-.9 1.6-.9 2 0l.3.8v5.3l7 4.1v1.9l-7-2.1v3.8l2 1.5v1.5l-3.3-1-3.3 1v-1.5l2-1.5v-3.8l-7 2.1v-1.9l7-4.1V4l.3-.8Z"/>',
   inicio:'<circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>',
   cofre:'<path d="M4 12a7 5 0 0 1 14 0v3a2 2 0 0 1-2 2h-1v2h-2v-2H9v2H7v-2.2A7 5 0 0 1 4 12Z"/><circle cx="14.5" cy="11.5" r="1" fill="currentColor" stroke="none"/><path d="M4 11c-1 0-1.5-1-1-2"/><path d="M11 7V5"/>',
   custos:'<path d="M6 3h9l3 3v15l-2-1.2L14 21l-2-1.2L10 21l-2-1.2L6 21V3Z"/><path d="M9 8h6M9 11.5h6M9 15h4"/>',
@@ -1980,6 +1988,13 @@ function gastoVsPlano(me){
   const diasRestantes=Math.max(0,totDias-diaAtual);
   const restante=Math.max(0,plano-gasto);
   const sobraPorDia=diasRestantes>0?restante/diasRestantes:0;
+  // ---- verba real (dinheiro que a pessoa levou) ----
+  const verba=Number((STATE.pessoas[me]||{}).verba)||0;
+  const temVerba=verba>0;
+  const saldoReal=Math.max(0,verba-gastoAteHoje);         // quanto ainda tem no bolso
+  // "a partir de amanhã": divide pelos dias estritamente após hoje
+  const diasDepoisDeHoje=Math.max(0,totDias-Math.max(0,diaAtual));
+  const podeGastarDia=diasDepoisDeHoje>0?saldoReal/diasDepoisDeHoje:saldoReal;
   // gasto por dia da viagem (para o mini-gráfico)
   const porDiaArr=[];
   for(let i=0;i<totDias;i++){
@@ -1989,7 +2004,8 @@ function gastoVsPlano(me){
     porDiaArr.push(g);
   }
   return {totDias,diaAtual,plano,porDia,gasto,gastoAteHoje,esperadoAteHoje,diff,mediaDia,
-          diasRestantes,restante,sobraPorDia,porDiaArr,temReal:reals.length>0};
+          diasRestantes,restante,sobraPorDia,porDiaArr,temReal:reals.length>0,
+          verba,temVerba,saldoReal,diasDepoisDeHoje,podeGastarDia};
 }
 
 function renderInicio(){_sujo.delete("inicio");
@@ -2062,16 +2078,29 @@ function renderInicio(){_sujo.delete("inicio");
     const linhaRitmo = G.diaAtual<=0 ? `A viagem começa em breve — o previsto é ${fmt(G.porDia)}/dia.` :
       (acima ? `Você está <b>${fmt(Math.abs(G.diff))}</b> acima do previsto até aqui.` :
                `Você está dentro do previsto — <b>${fmt(Math.abs(G.diff))}</b> de folga.`);
+    // bloco da verba real (o "quanto posso gastar por dia" com base no que levei)
+    let verbaBloco;
+    if(G.temVerba){
+      verbaBloco=`<div class="gd-verba">
+        <div class="gd-vcol"><div class="gd-vk">Levei</div><div class="gd-vv money">${fmt(G.verba)}</div></div>
+        <div class="gd-vcol"><div class="gd-vk">Ainda tenho</div><div class="gd-vv money" style="color:var(--ok)">${fmt(G.saldoReal)}</div></div>
+        <div class="gd-vcol gd-vhi"><div class="gd-vk">Posso gastar/dia</div><div class="gd-vv money">${fmt(G.podeGastarDia)}</div></div>
+      </div>
+      <div class="ini-line-sm">${G.diasDepoisDeHoje>0?`Dá pra gastar <b>${fmt(G.podeGastarDia)}</b> por dia nos ${G.diasDepoisDeHoje} ${G.diasDepoisDeHoje===1?"dia":"dias"} que faltam.`:`Último dia — o que sobrou é seu: <b>${fmt(G.saldoReal)}</b>.`} <span class="lnk" data-verba="1">ajustar verba</span></div>`;
+    }else{
+      verbaBloco=`<button class="btn sec sm" data-verba="1" style="margin-top:9px;width:100%">Definir minha verba de viagem</button>
+      <div class="ini-line-sm" style="margin-top:6px">Diga quanto você levou pra ver <b>quanto pode gastar por dia</b> com base no que ainda tem.</div>`;
+    }
     gastoCard=`<div class="ini-card" data-goto="custos" role="button" tabindex="0">
-      <div class="ini-h"><span class="ini-ic">${svgIcon("custos")}</span><span class="ini-t">Gasto da viagem</span>${infoBtn("O previsto por dia é o seu plano de viagem dividido pelos dias. Comparamos o que você já gastou (lançado em Custos › Realizados) com o previsto até hoje.")}<span class="ini-go">ver custos ›</span></div>
+      <div class="ini-h"><span class="ini-ic">${svgIcon("custos")}</span><span class="ini-t">Gasto da viagem</span>${infoBtn("Comparamos o que você já gastou (lançado em Custos › Já gastei) com o seu plano. Se você informar a verba que levou, calculamos também quanto dá pra gastar por dia com o que ainda sobra.")}<span class="ini-go">ver custos ›</span></div>
       <div class="ini-row">
         <div class="grow"><div class="ini-big money">${fmt(G.gastoAteHoje)}</div>
-          <div class="ini-sub">de ${fmt(G.plano)} planejados${G.diasRestantes>0?` · ${fmt(G.sobraPorDia)}/dia restante`:""}</div></div>
+          <div class="ini-sub">${G.temVerba?`de ${fmt(G.verba)} que você levou`:`de ${fmt(G.plano)} planejados`}</div></div>
         <div class="gd-day"><div class="gd-day-n">${Math.max(0,G.diaAtual)}</div><div class="gd-day-l">de ${G.totDias}</div></div>
       </div>
-      <div class="rail ${tom==="ok"?"ok":"dgr"}" style="margin:9px 0 4px"><i style="width:${pctBar}%"></i></div>
+      <div class="rail ${G.temVerba?"ok":(tom==="ok"?"ok":"dgr")}" style="margin:9px 0 4px"><i style="width:${G.temVerba?(G.verba>0?clamp(G.gastoAteHoje/G.verba*100,0,100):0):pctBar}%"></i></div>
       ${G.porDiaArr.some(g=>g>0)?`<div class="gd-chart">${barras}</div>`:""}
-      <div class="ini-line-sm ini-${tom}">${G.temReal?linhaRitmo:"Lance seus gastos em Custos › Realizados para acompanhar aqui."}</div>
+      ${G.temReal||G.temVerba?verbaBloco:`<div class="ini-line-sm ini-${tom}">Lance seus gastos em Custos › Já gastei para acompanhar aqui.</div><button class="btn sec sm" data-verba="1" style="margin-top:9px;width:100%">Definir minha verba de viagem</button>`}
     </div>`;
   }
 
@@ -2087,13 +2116,27 @@ function renderInicio(){_sujo.delete("inicio");
   ${rachaCard}
   <div class="note" style="text-align:center;margin-top:4px">Toque em qualquer cartão para abrir a aba completa.</div>`;
 
-  // navegação: cada cartão abre a aba correspondente (menos ao tocar no (i))
+  // navegação: cada cartão abre a aba correspondente (menos ao tocar no (i) ou na verba)
   $("#p-inicio").querySelectorAll("[data-goto]").forEach(el=>{
-    const ir=(e)=>{if(e&&e.target&&e.target.closest&&e.target.closest(".ibtn"))return;show(el.dataset.goto);};
+    const ir=(e)=>{if(e&&e.target&&e.target.closest&&e.target.closest(".ibtn, [data-verba]"))return;show(el.dataset.goto);};
     el.onclick=ir;
     el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();ir(e);}};
   });
+  $("#p-inicio").querySelectorAll("[data-verba]").forEach(el=>el.onclick=e=>{e.stopPropagation();verbaModal();});
   requestAnimationFrame(animarNumeros);
+}
+
+/* modal da verba de viagem (dinheiro que a pessoa levou, por pessoa) */
+function verbaModal(){
+  const me=STATE.me;if(!me)return;
+  const atual=Number((STATE.pessoas[me]||{}).verba)||0;
+  openModal("Minha verba de viagem",[
+    {id:"verba",label:"Quanto você levou (em "+STATE.cur+")",type:"money",
+     value:atual>0?disp(atual).toFixed(2).replace(".",","):"",placeholder:"0,00"}
+  ],v=>{
+    savePessoa(me,{verba:v.verba>0?toBRL(v.verba,STATE.cur):0});
+    toast(v.verba>0?"Verba salva ✓":"Verba removida");
+  },"Salvar");
 }
 
 function renderCofre(){_sujo.delete("cofre");
