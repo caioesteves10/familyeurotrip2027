@@ -246,6 +246,16 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .deplist::-webkit-scrollbar{width:5px}
 .deplist::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
 
+/* botão "ver histórico e a família" (colapsa a parte densa do Cofre) */
+.mais-btn{width:100%;margin:16px 0 4px;padding:11px 14px;display:flex;align-items:center;justify-content:center;gap:8px;
+ background:transparent;border:1px dashed var(--line2);border-radius:12px;color:var(--muted);
+ font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s ease,color .15s ease,border-color .15s ease}
+.mais-btn:hover{background:var(--panel2);color:var(--text);border-color:var(--dim)}
+.mais-btn:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.mais-ch{font-size:15px;line-height:1;transition:transform .2s ease}
+.mais-btn.aberto .mais-ch{transform:rotate(180deg)}
+.cofre-mais[hidden]{display:none}
+
 /* meses do cofre */
 .mrow{display:flex;align-items:center;gap:10px;padding:8px 0}
 .mrow+.mrow{border-top:1px solid var(--line)}
@@ -479,6 +489,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
   .chartwrap svg{height:270px}
   /* A família (esquerda) + gráfico (direita) lado a lado */
   .cofre-fam{display:grid;grid-template-columns:1fr 1.15fr;gap:16px;align-items:stretch;margin-top:22px}
+  .cofre-mais .cofre-fam{margin-top:14px}
   .cofre-fam .dcol{display:flex;flex-direction:column;min-width:0}
   .cofre-fam .dcol .card{flex:1;display:flex;flex-direction:column;justify-content:center}
   .cofre-fam .chartwrap{flex:1;display:flex;flex-direction:column;justify-content:center}
@@ -1117,18 +1128,29 @@ function abrirPerfil(){
 }
 /* ---- Onboarding: boas-vindas + dicas de recursos escondidos --------
    Mostra uma vez por pessoa (guardado no aparelho). Reúne num só cartão
-   as funções que ninguém acha sozinho: os cartões-resumo do Início, o
-   arrastar entre abas, o divisor de conta de restaurante e o conversor
-   de moeda. Pode ser reaberto quando quiser pelo menu do perfil ("Como
-   usar o app"), então não é uma parede única que aparece e some. */
-const _temToque=(("ontouchstart" in window)||navigator.maxTouchPoints>0);
+   as funções que ninguém acha sozinho. As dicas mudam conforme o modo:
+   no celular valem swipe e puxar-pra-atualizar (gestos de toque); no
+   desktop valem o menu lateral e o "passe o mouse". A decisão usa o
+   MESMO breakpoint do layout (900px) e é feita na hora que o modal abre,
+   então redimensionar a janela ou girar o tablet e reabrir por "Como
+   usar o app" mostra sempre a versão certa. */
+const _ehDesktop=()=>window.matchMedia&&window.matchMedia("(min-width:900px)").matches;
 function mostrarIntro(forcado){
   if(!forcado){try{if(localStorage.getItem(LS.intro)==="1")return;}catch(e){}}
-  const dicas=[
-    ["inicio",`<b>Início</b> reúne o resumo da viagem. Toque em qualquer cartão pra abrir a aba inteira.`],
-    ["roteiro",_temToque?`<b>Arraste pro lado</b> na tela pra pular de uma aba pra outra, sem usar o menu.`:`Use o menu à esquerda (ou as <b>setas do teclado</b> não — clique nas abas) pra navegar.`],
+  const desk=_ehDesktop();
+  const abrir=desk?"Clique":"Toque";
+  const dicas=desk?[
+    ["inicio",`<b>Início</b> reúne o resumo da viagem. Clique em qualquer cartão pra abrir a aba inteira.`],
+    ["roteiro",`Use o <b>menu lateral à esquerda</b> pra ir de uma aba pra outra.`],
     ["racha",`Foram comer juntos? Em <b>Racha</b>, o botão <b>Dividir restaurante</b> separa a conta por item, gorjeta e quem pagou.`],
-    ["custos",`Toque em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`]
+    ["check",`Passe o <b>mouse sobre uma linha</b> pra ver os botões de <b>editar</b> e <b>excluir</b> — eles ficam escondidos até você chegar perto.`],
+    ["custos",`Clique em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`]
+  ]:[
+    ["inicio",`<b>Início</b> reúne o resumo da viagem. Toque em qualquer cartão pra abrir a aba inteira.`],
+    ["roteiro",`<b>Arraste pro lado</b> na tela pra pular de uma aba pra outra, sem abrir o menu de baixo.`],
+    ["racha",`Foram comer juntos? Em <b>Racha</b>, o botão <b>Dividir restaurante</b> separa a conta por item, gorjeta e quem pagou.`],
+    ["custos",`Toque em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`],
+    ["cofre",`<b>Puxe a tela pra baixo</b> a qualquer momento pra atualizar as cotações do câmbio.`]
   ];
   $("#modal").innerHTML=`<div class="modal"><div class="box">
     <div class="kicker" style="text-align:center;margin-bottom:2px">Paris · Munique · Berlim</div>
@@ -1897,7 +1919,6 @@ function renderCofre(){_sujo.delete("cofre");
 
   </div><!-- /cofre-month -->
   </div><!-- /cofre-top -->
-  ${keys.length?`<div class="sect">Últimos meses</div>${mesesStrip(mm)}`:""}
 
   <div class="sect">Meus depósitos<span class="r">${deps.length||"nenhum"}</span></div>
   ${deps.length?`<div class="${deps.length>4?"deplist":""}">`+deps.map(x=>`<div class="li">
@@ -1907,6 +1928,10 @@ function renderCofre(){_sujo.delete("cofre");
       <button class="x" data-del="${x.id}" aria-label="Excluir">✕</button></div>`).join("")+`</div>`:
     '<div class="empty">Nada guardado ainda.<br>O primeiro depósito é o mais difícil.</div>'}
 
+  <button class="mais-btn" id="cofre-mais-btn" aria-expanded="false" aria-controls="cofre-mais">
+    <span>Ver histórico e a família</span><span class="mais-ch">⌄</span></button>
+  <div class="cofre-mais" id="cofre-mais" hidden>
+  ${keys.length?`<div class="sect" style="margin-top:4px">Últimos meses</div>${mesesStrip(mm)}`:""}
   <div class="cofre-fam">
   <div class="dcol">
   <div class="sect" style="margin-top:0">A família<span class="r">${(()=>{const g=PEOPLE.reduce((a,p)=>a+guardado(p),0),m=PEOPLE.reduce((a,p)=>a+metaDe(p),0);return m?Math.round(g/m*100)+"% do total":"";})()}</span></div>
@@ -1924,10 +1949,12 @@ function renderCofre(){_sujo.delete("cofre");
   ${grupoLinha()}
   </div>`:""}
   </div>
+  </div><!-- /cofre-mais -->
   ${fm>0?`<div class="note" style="text-align:center">A meta não inclui ${fmt(fm)} da sua passagem aérea, que vai parcelada no cartão. O plano completo está em Custos.</div>`:""}`;
 
   checarMarco(me,pct);
-  wireChart();
+  // o gráfico do grupo mora dentro do bloco recolhido; só desenha quando aparece
+  if(!(($("#cofre-mais")||{}).hidden))wireChart();
   requestAnimationFrame(animarNumeros);
   const q=$("#quick");if(q)q.onclick=()=>{
     savePessoa(me,{depositos:(meDoc().depositos||[]).concat([{id:uid(),valor:conv(M.falta,moedaDe(me)),moeda:moedaDe(me),mes:M.mk,nota:"meta do mês"}])});
@@ -1954,6 +1981,18 @@ function renderCofre(){_sujo.delete("cofre");
   ],v=>{
     savePessoa(me,{meta:v.meta>0?toBRL(v.meta,STATE.cur):0});
     toast(v.meta>0?"Meta salva":"Meta automática");},"Salvar");
+
+  // "Ver histórico e a família": começa recolhido; o gráfico só é desenhado
+  // depois de aparecer (SVG oculto mede largura 0 e sairia torto).
+  const maisBtn=$("#cofre-mais-btn"),maisBox=$("#cofre-mais");
+  if(maisBtn&&maisBox)maisBtn.onclick=()=>{
+    const abrir=maisBox.hidden;
+    maisBox.hidden=!abrir;
+    maisBtn.setAttribute("aria-expanded",abrir?"true":"false");
+    maisBtn.classList.toggle("aberto",abrir);
+    maisBtn.querySelector("span").textContent=abrir?"Ocultar histórico e a família":"Ver histórico e a família";
+    if(abrir){wireChart();requestAnimationFrame(animarNumeros);}
+  };
 
 }
 
