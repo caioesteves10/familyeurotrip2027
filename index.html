@@ -144,6 +144,24 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
  border-radius:99px;padding:5px 12px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;white-space:nowrap}
 .catchip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 .catchip:active{transform:scale(.95)}
+/* faixa de "nova versão disponível" */
+#upbar{position:fixed;left:12px;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:70;
+ background:var(--navy);color:#fff;border-radius:13px;padding:11px 12px 11px 15px;
+ display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:var(--shadowlg);
+ font-size:13.5px;font-weight:700;transform:translateY(20px);opacity:0;transition:transform .3s,opacity .3s}
+#upbar.on{transform:none;opacity:1}
+#upbar button{background:var(--orange);color:#fff;border:none;border-radius:9px;padding:8px 15px;
+ font-size:13px;font-weight:800;cursor:pointer;font-family:inherit}
+@media (min-width:900px){#upbar{left:auto;right:20px;bottom:20px;max-width:340px}}
+/* status de sincronização */
+#syncbar{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;
+ border-radius:10px;padding:8px 11px;margin-bottom:10px}
+#syncbar.off{background:#FEF3C7;color:#92400E}
+#syncbar.pend{background:var(--panel2);color:var(--muted)}
+#syncbar .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+#syncbar.off .dot{background:#D97706}
+#syncbar.pend .dot{background:var(--orange);animation:pulseDot 1.1s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.3}}
 /* Mala (sub-aba do checklist) */
 .mala-hero{display:flex;align-items:center;gap:16px;background:var(--navy);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadowlg)}
 .mala-bag{position:relative;flex:0 0 auto;width:60px;height:60px;color:rgba(255,255,255,.92)}
@@ -505,6 +523,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
     </div>
 
     <div id="offbar" class="warnbox hidden"></div>
+    <div id="syncbar" class="hidden"></div>
 
     <section class="panel-v" id="p-cofre"></section>
     <section class="panel-v" id="p-custos"></section>
@@ -680,7 +699,7 @@ const checarPessoa=(n,v)=>conferir(PIN_HASH[n],v,PINS[n]);
 const checarAdmin=v=>conferir(ADMIN_HASH,v,ADMIN_PIN);
 
 /* ---- 3. ESTADO ----------------------------------------- */
-let db=null, FB=null, MOCK=false;
+let db=null, FB=null, MOCK=false, PERSIST_OK=false;
 const LS={me:"tr27_user",admin:"tr27_admin",tab:"tr27_tab",mock:"tr27_mock",cur:"tr27_cur",csub:"tr27_csub"};
 const STATE={
   config:JSON.parse(JSON.stringify(SEED.config)),
@@ -815,10 +834,39 @@ async function initFB(){
       }
     }else{APPCHECK_ST="desligado (APPCHECK_KEY vazio no config.js)";}
     if(USE_ANON_AUTH){
-      try{await U.signInAnonymously(U.getAuth(app));}
-      catch(e){e.code=e.code||"AUTH_FAIL";throw e;}
+      const auth=U.getAuth(app);
+      // espera o SDK restaurar a sessão guardada no aparelho
+      await new Promise(res=>{const un=U.onAuthStateChanged(auth,()=>{un();res();});});
+      if(!auth.currentUser){
+        try{await U.signInAnonymously(auth);}
+        catch(e){
+          // sem rede: segue com o cache local do Firestore em vez de cair no modo local
+          if(navigator.onLine){e.code=e.code||"AUTH_FAIL";throw e;}
+          console.warn("Offline no login anônimo — seguindo com o cache local.");
+        }
+      }
     }
-    db=F.getFirestore(app);
+    /* Persistência offline: leituras e ESCRITAS continuam funcionando sem rede.
+       O que for lançado offline fica numa fila local e sobe sozinho ao reconectar. */
+    try{
+      if(F.persistentLocalCache&&F.initializeFirestore){
+        db=F.initializeFirestore(app,{
+          localCache:F.persistentLocalCache(
+            F.persistentMultipleTabManager?{tabManager:F.persistentMultipleTabManager()}:{})
+        });
+        PERSIST_OK=true;
+      }else{
+        db=F.getFirestore(app);
+        if(F.enableIndexedDbPersistence){ // API antiga
+          try{await F.enableIndexedDbPersistence(db);PERSIST_OK=true;}catch(e2){console.warn("IndexedDB:",e2&&e2.code);}
+        }
+      }
+    }catch(e){
+      console.warn("Persistência offline indisponível, seguindo sem ela:",e);
+      try{db=F.getFirestore(app);}catch(e3){}
+      PERSIST_OK=false;
+    }
+    if(!db)db=F.getFirestore(app);
     await ensureSeed();listen();
   }catch(e){
     console.warn("Firestore indisponível — modo local:",e);
@@ -838,7 +886,14 @@ async function initFB(){
 }
 async function ensureSeed(){
   const sref=FB.doc(db,NS.viagem,"seeded");
-  const snap=await FB.getDoc(sref);
+  let snap;
+  try{snap=await FB.getDoc(sref);}
+  catch(e){
+    // offline e sem cache dessa leitura: não semear nada e seguir para os listeners,
+    // que servem o que já estiver guardado no aparelho
+    console.warn("Sem leitura do 'seeded' (provavelmente offline) — seguindo:",e&&e.code);
+    return;
+  }
   if(snap.exists())return;
   const b=FB.writeBatch(db);
   b.set(FB.doc(db,NS.viagem,"config"),SEED.config);
@@ -849,17 +904,42 @@ async function ensureSeed(){
   b.set(sref,{done:true,at:Date.now()});
   await b.commit();
 }
+/* ---- estado de sincronização -------------------------------------
+   Com a persistência ligada, o que é lançado offline fica numa fila local.
+   Esta faixa deixa isso visível: "sincronizando" enquanto há coisa na fila. */
+const _pend=new Set();
+function atualizarSync(){
+  const el=$("#syncbar");if(!el)return;
+  if(MOCK){el.className="hidden";el.textContent="";return;} // o offbar amarelo já explica
+  const offline=!navigator.onLine;
+  const pendentes=_pend.size>0;
+  if(!offline&&!pendentes){el.className="hidden";el.textContent="";return;}
+  el.className=offline?"off":"pend";
+  el.innerHTML='<span class="dot"></span><span>'+(offline
+    ? "Sem internet — o que você lançar fica salvo e sobe sozinho quando a conexão voltar."
+    : "Sincronizando alterações…")+"</span>";
+}
+function marcarPend(chave,meta){
+  if(meta&&meta.hasPendingWrites)_pend.add(chave);else _pend.delete(chave);
+  atualizarSync();
+}
+window.addEventListener("online",atualizarSync);
+window.addEventListener("offline",atualizarSync);
+
 function listen(){
-  const doc1=(id,key,fb)=>FB.onSnapshot(FB.doc(db,NS.viagem,id),d=>{
-    STATE[key]=d.exists()?Object.assign({},fb,d.data()):JSON.parse(JSON.stringify(fb));renderAll();});
+  const opts={includeMetadataChanges:true};
+  const doc1=(id,key,fb)=>FB.onSnapshot(FB.doc(db,NS.viagem,id),opts,d=>{
+    STATE[key]=d.exists()?Object.assign({},fb,d.data()):JSON.parse(JSON.stringify(fb));
+    marcarPend("v:"+id,d.metadata);renderAll();});
   doc1("config","config",SEED.config);
   doc1("roteiro","roteiro",SEED.roteiro);
   doc1("custos","custos",SEED.custos);
   doc1("racha","racha",SEED.racha);
-  FB.onSnapshot(FB.collection(db,NS.pessoas),s=>{
+  FB.onSnapshot(FB.collection(db,NS.pessoas),opts,s=>{
     PEOPLE.forEach(p=>{if(!STATE.pessoas[p])STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};});
     s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[]};});
-    renderAll();});
+    marcarPend("pessoas",s.metadata);renderAll();});
+  atualizarSync();
 }
 function loadLocal(){
   try{
@@ -2674,6 +2754,49 @@ setInterval(()=>{const k=monthKey(new Date());if(k!==ULT_MES){ULT_MES=k;renderAl
   },{passive:true});
 })();
 
+/* ---- Service worker: o app abre mesmo sem internet ------------------
+   Guarda o casco do app no aparelho. Quando sai uma versão nova,
+   mostra uma faixa oferecendo atualizar em vez de exigir refresh forçado. */
+(function offlineApp(){
+  if(!("serviceWorker" in navigator))return;
+  if(location.protocol==="file:")return; // não funciona em file://
+  const registrar=()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("SW:",e));
+  // este script é um módulo com await: pode terminar depois do "load"
+  if(document.readyState==="complete")registrar();
+  else window.addEventListener("load",registrar);
+  let avisado=false;
+  const MARCA="./__update__";
+  navigator.serviceWorker.addEventListener("message",e=>{
+    if(e.data&&e.data.type==="update-ready")mostrar();
+  });
+  // o SW deixa um marcador no cache; a revalidação termina depois do load,
+  // então conferimos algumas vezes nos primeiros segundos
+  async function temAtualizacao(){
+    try{
+      const ks=await caches.keys();
+      for(const k of ks){const c=await caches.open(k);if(await c.match(MARCA))return true;}
+    }catch(e){}
+    return false;
+  }
+  async function limparMarca(){
+    try{const ks=await caches.keys();for(const k of ks){const c=await caches.open(k);await c.delete(MARCA);}}catch(e){}
+  }
+  function mostrar(){if(!avisado){avisado=true;faixaAtualizar();}}
+  [1500,4000,8000].forEach(t=>setTimeout(async()=>{if(!avisado&&await temAtualizacao())mostrar();},t));
+  function faixaAtualizar(){
+    if(document.getElementById("upbar"))return;
+    const d=document.createElement("div");
+    d.id="upbar";
+    d.innerHTML='<span>Nova versão disponível</span><button id="upgo">Atualizar</button>';
+    document.body.appendChild(d);
+    requestAnimationFrame(()=>d.classList.add("on"));
+    d.querySelector("#upgo").onclick=async()=>{
+      await limparMarca();
+      try{if(navigator.serviceWorker.controller)navigator.serviceWorker.controller.postMessage({type:"skip-waiting"});}catch(err){}
+      location.reload();
+    };
+  }
+})();
 </script>
 </body>
 </html>
