@@ -142,6 +142,18 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 
 /* chips de pessoa */
 .chips{display:flex;gap:6px;flex-wrap:wrap}
+
+/* split por % no modal de despesa */
+.segmini{margin-bottom:0}
+.segmini div{padding:7px 10px;font-size:12.5px}
+.pctrow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.pctname{flex:0 0 88px;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pctinp{flex:0 0 62px;text-align:right;padding:6px 8px!important}
+.pctsign{color:var(--muted);font-weight:700;font-size:13px;margin-left:-4px}
+.pctcash{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--dim);font-variant-numeric:tabular-nums}
+.pctsum{margin-top:8px;font-size:12.5px;font-weight:800;text-align:right}
+.pctsum.ok{color:var(--ok)}
+.pctsum.falta{color:var(--orange)}
 .chip{background:var(--panel);border:1px solid var(--line2);color:var(--muted);border-radius:99px;
  padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer;user-select:none}
 .chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
@@ -1338,14 +1350,15 @@ const ICON={
   admin:'<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/>'
 };
 const svgIcon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||""}</svg>`;
-const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["compras","Compras"],["check","Checklist"],["racha","Racha"]];
-const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["racha","Racha"],["compras","Compras"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
+const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["check","Checklist"],["racha","Racha"]];
+const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["racha","Racha"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
 function emViagemAuto(){const c=STATE.config;return daysTo(c.inicio)<=0&&daysTo(c.fim)>=0;}
 /* modo viagem: "auto" segue as datas; "on"/"off" forçam manualmente (por aparelho) */
 function viaMode(){try{return localStorage.getItem(LS.viamode)||"auto";}catch(e){return "auto";}}
 function emViagem(){const m=viaMode();return m==="on"?true:(m==="off"?false:emViagemAuto());}
 const TABS=()=>emViagem()?TABS_VIA:TABS_PRE;
 let curTab=localStorage.getItem(LS.tab)||"inicio";
+if(curTab==="compras")curTab="custos";
 function buildNav(){
   let t=TABS().slice();
   if(isAdmin())t.push(["admin","Admin"]);
@@ -1375,6 +1388,7 @@ function applyTab(){
   $$(".panel-v").forEach(e=>e.classList.toggle("on",e.id==="p-"+curTab));
 }
 function show(t){
+  if(t==="compras")t="custos";   // aba Compras foi fundida em Custos
   if(t!==curTab)window.scrollTo(0,0);
   const changed=t!==curTab;
   curTab=t;localStorage.setItem(LS.tab,t);
@@ -1475,6 +1489,21 @@ function metaDe(p){const m=Number((STATE.pessoas[p]||{}).meta)||0;return m>0?m:o
 const metaAuto=p=>!(Number((STATE.pessoas[p]||{}).meta)>0);
 
 /* ---- 9. RENDER GERAL ----------------------------------- */
+let _compraMigrada=false;
+function migrarMinhasCompras(){
+  if(_compraMigrada)return;
+  const me=STATE.me;if(!me||!STATE.pessoas[me])return;
+  const compras=meDoc().compras||[];
+  if(!compras.length){_compraMigrada=true;return;}
+  const pessoais=(meDoc().pessoais||[]).slice();
+  compras.forEach(c=>{
+    const desc=c.onde?`${c.item} (${c.onde})`:c.item;
+    pessoais.push({id:uid(),desc:desc||"Compra",cat:"Compras",valor:Number(c.valor)||0,moeda:c.moeda||"EUR"});
+  });
+  _compraMigrada=true;
+  savePessoa(me,{pessoais,compras:[]});
+}
+
 let _rendering=false;
 /* ---- render seletivo ---------------------------------------------
    Antes, qualquer mudança redesenhava os 7 painéis (inclusive o gráfico).
@@ -1491,6 +1520,7 @@ function renderPainel(t){
 function garantirPainel(t){if(_sujo.has(t))renderPainel(t);}
 function renderAll(){
   if(!STATE.me||_rendering)return;
+  migrarMinhasCompras();
   _rendering=true;
   // só preserva foco de campos fixos do app (busca de mês etc.), nunca de inputs do modal
   const ae=document.activeElement;
@@ -3024,11 +3054,22 @@ function balances(){
   const b={};PEOPLE.forEach(p=>b[p]=0);
   (STATE.racha.despesas||[]).forEach(d=>{
     const cents=Math.round(toMO(d.valor,d.moeda)*100);
-    const g=(Array.isArray(d.entre)&&d.entre.length?d.entre:PEOPLE).filter(p=>b[p]!=null);
-    if(!g.length)return;
     if(b[d.pagou]!=null)b[d.pagou]+=cents;
-    const each=Math.floor(cents/g.length),resto=cents-each*g.length;
-    g.forEach((p,i)=>b[p]-=each+(i<resto?1:0));
+    // split por porcentagem (quando definido e válido); senão, igual entre "entre"
+    const pctOk=d.pct&&typeof d.pct==="object"&&Math.abs(Object.values(d.pct).reduce((a,x)=>a+(Number(x)||0),0)-100)<0.01;
+    if(pctOk){
+      const nomes=Object.keys(d.pct).filter(p=>b[p]!=null&&Number(d.pct[p])>0);
+      let usado=0;
+      nomes.forEach((p,i)=>{
+        const parte=i===nomes.length-1?cents-usado:Math.round(cents*Number(d.pct[p])/100);
+        usado+=parte;b[p]-=parte;
+      });
+    }else{
+      const g=(Array.isArray(d.entre)&&d.entre.length?d.entre:PEOPLE).filter(p=>b[p]!=null);
+      if(!g.length)return;
+      const each=Math.floor(cents/g.length),resto=cents-each*g.length;
+      g.forEach((p,i)=>b[p]-=each+(i<resto?1:0));
+    }
   });
   (STATE.racha.pagamentos||[]).forEach(t=>{
     const cents=Math.round(toMO(t.valor,t.moeda)*100);
@@ -3087,6 +3128,100 @@ function settle(bal){
   }
   return out.sort((x,y)=>y.v-x.v);
 }
+/* ---- modal de despesa do Racha (split igual OU por %) -------------
+   Igual é o padrão (divide entre os marcados). Em "Por %", a pessoa
+   define a fatia de cada um; mostramos o valor em dinheiro ao lado e
+   o quanto falta para 100% (bloqueia salvar até fechar).            */
+function despesaModal(d){
+  const me=STATE.me, hoje=new Date().toISOString().slice(0,10);
+  const isEdit=!!d;
+  const base={desc:d?d.desc:"",valor:d?d.valor:0,moeda:d?(d.moeda||"EUR"):"EUR",
+    pagou:d?d.pagou:me,entre:(d&&Array.isArray(d.entre)&&d.entre.length)?d.entre.slice():PEOPLE.slice(),
+    data:d?(d.data||hoje):hoje,
+    modo:(d&&d.pct)?"pct":"igual",
+    pct:(d&&d.pct)?Object.assign({},d.pct):{}};
+  const optSel=(arr,val)=>arr.map(o=>`<option value="${esc(o)}" ${o===val?"selected":""}>${esc(o)}</option>`).join("");
+  $("#modal").innerHTML=`<div class="modal"><div class="box"><h3>${isEdit?"Editar despesa":"Nova despesa"}</h3>
+    <div class="fld"><label class="f">O que foi</label><input id="d_desc" value="${esc(base.desc)}" placeholder="Ex.: jantar no Hofbräuhaus"></div>
+    <div class="row" style="gap:8px">
+      <div class="fld" style="flex:2"><label class="f">Valor</label><input id="d_valor" inputmode="decimal" value="${isEdit?String(base.valor).replace(".",","):""}" placeholder="0,00"></div>
+      <div class="fld" style="flex:1"><label class="f">Moeda</label><select id="d_moeda">${optSel(["EUR","BRL","USD"],base.moeda)}</select></div>
+    </div>
+    <div class="fld"><label class="f">Quem pagou</label><select id="d_pagou">${optSel(PEOPLE,base.pagou)}</select></div>
+    <div class="fld"><label class="f">Como dividir</label>
+      <div class="seg segmini" id="d_modo">
+        <div data-m="igual" class="${base.modo==="igual"?"on":""}">Igual</div>
+        <div data-m="pct" class="${base.modo==="pct"?"on":""}">Por %</div>
+      </div></div>
+    <div class="fld" id="d_igualwrap" style="${base.modo==="pct"?"display:none":""}">
+      <label class="f">Dividir entre</label>
+      <div class="chips" id="d_entre">${PEOPLE.map(p=>`<span class="chip ${base.entre.indexOf(p)>-1?"on":""}" data-p="${esc(p)}">${esc(p)}</span>`).join("")}</div>
+    </div>
+    <div class="fld" id="d_pctwrap" style="${base.modo==="pct"?"":"display:none"}">
+      <label class="f">Porcentagem de cada um</label>
+      <div id="d_pctrows">${PEOPLE.map(p=>`<div class="pctrow">
+        <span class="pctname">${esc(p)}</span>
+        <input class="pctinp" inputmode="decimal" data-p="${esc(p)}" value="${base.pct[p]!=null?base.pct[p]:""}" placeholder="0"><span class="pctsign">%</span>
+        <span class="pctcash" data-cash="${esc(p)}">—</span>
+      </div>`).join("")}</div>
+      <div class="pctsum" id="d_pctsum"></div>
+    </div>
+    <div class="fld"><label class="f">Data</label><input id="d_data" type="date" value="${base.data}"></div>
+    <div class="row" style="gap:8px;margin-top:6px">
+      <button class="btn gh" id="d_cancel" style="flex:1">Cancelar</button>
+      <button class="btn" id="d_ok" style="flex:2">${isEdit?"Salvar":"Lançar"}</button></div>
+  </div></div>`;
+  const close=()=>{$("#modal").innerHTML="";};
+  $("#d_cancel").onclick=close;
+  $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)close();};
+  let modo=base.modo;
+  const seg=$("#d_modo");
+  seg.querySelectorAll("[data-m]").forEach(x=>x.onclick=()=>{
+    modo=x.dataset.m;seg.querySelectorAll("[data-m]").forEach(y=>y.classList.toggle("on",y===x));
+    $("#d_igualwrap").style.display=modo==="pct"?"none":"";
+    $("#d_pctwrap").style.display=modo==="pct"?"":"none";
+    atualizaPct();
+  });
+  $("#d_entre").querySelectorAll(".chip").forEach(c=>c.onclick=()=>c.classList.toggle("on"));
+  const valorAtual=()=>parseMoney($("#d_valor").value)||0;
+  const somaPct=()=>PEOPLE.reduce((a,p)=>{const el=$("#d_pctwrap").querySelector(`[data-p="${p}"]`);return a+(parseMoney(el.value)||0);},0);
+  function atualizaPct(){
+    if(modo!=="pct")return;
+    const val=valorAtual(),soma=somaPct();
+    PEOPLE.forEach(p=>{const pc=parseMoney($("#d_pctwrap").querySelector(`[data-p="${p}"]`).value)||0;
+      $(`[data-cash="${p}"]`).textContent=val>0&&pc>0?fmtIn(val*pc/100,$("#d_moeda").value):"—";});
+    const falta=100-soma,el=$("#d_pctsum");
+    if(Math.abs(falta)<0.01){el.textContent="Soma 100% ✓";el.className="pctsum ok";}
+    else if(falta>0){el.textContent=`Falta ${(+falta.toFixed(1))}%`+(val>0?` · ${fmtIn(val*falta/100,$("#d_moeda").value)}`:"");el.className="pctsum falta";}
+    else{el.textContent=`Passou ${(+(-falta).toFixed(1))}%`;el.className="pctsum falta";}
+  }
+  $("#d_pctwrap").querySelectorAll(".pctinp").forEach(i=>i.oninput=atualizaPct);
+  $("#d_valor").addEventListener("input",atualizaPct);
+  $("#d_moeda").addEventListener("change",atualizaPct);
+  atualizaPct();
+  $("#d_ok").onclick=()=>{
+    const desc=$("#d_desc").value.trim(),valor=valorAtual(),moeda=$("#d_moeda").value,
+      pagou=$("#d_pagou").value,data=$("#d_data").value||hoje;
+    if(!desc||valor<=0){toast("Preencha descrição e valor");return;}
+    let payload;
+    if(modo==="pct"){
+      const soma=somaPct();
+      if(Math.abs(soma-100)>=0.01){toast("As porcentagens precisam somar 100%");return;}
+      const pct={};PEOPLE.forEach(p=>{const v=parseMoney($("#d_pctwrap").querySelector(`[data-p="${p}"]`).value)||0;if(v>0)pct[p]=v;});
+      payload={desc,valor,moeda,pagou,data,pct};
+    }else{
+      const entre=Array.from($("#d_entre").querySelectorAll(".chip.on")).map(c=>c.dataset.p);
+      if(!entre.length){toast("Escolha entre quem dividir");return;}
+      payload={desc,valor,moeda,pagou,data,entre};
+    }
+    if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+    close();
+    if(isEdit)saveDoc("racha",{despesas:(STATE.racha.despesas||[]).map(x=>x.id===d.id?Object.assign({id:d.id},payload):x)});
+    else addArr("racha","despesas",Object.assign({id:uid()},payload));
+    toast(isEdit?"Despesa atualizada":"Despesa lançada");
+  };
+}
+
 function renderRacha(){_sujo.delete("racha");
   const me=STATE.me;
   const desp=(STATE.racha.despesas||[]).slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
@@ -3135,8 +3270,9 @@ function renderRacha(){_sujo.delete("racha");
 
   <div class="sect">Despesas<span class="r">${desp.length}</span></div>
   ${desp.map(d=>{const g=(Array.isArray(d.entre)&&d.entre.length?d.entre:PEOPLE);
+    const comoDiv=d.pct?"por %":(g.length===PEOPLE.length?"dividido entre todos":"entre "+g.map(esc).join(", "));
     return `<div class="li"><div class="t"><div class="n">${esc(d.desc)}</div>
-      <div class="s">${esc(d.pagou)} pagou · ${g.length===PEOPLE.length?"dividido entre todos":"entre "+g.map(esc).join(", ")} · ${esc(fmtDate(d.data))}</div></div>
+      <div class="s">${esc(d.pagou)} pagou · ${comoDiv} · ${esc(fmtDate(d.data))}</div></div>
       <div class="v money">${fmtIn(d.valor,d.moeda)}</div>
       <button class="x" data-dedt="${d.id}" aria-label="Editar">✎</button>
       <button class="x" data-ddl="${d.id}" aria-label="Excluir">✕</button></div>`;}).join("")}
@@ -3155,18 +3291,7 @@ function renderRacha(){_sujo.delete("racha");
       else{await navigator.clipboard.writeText(txt);toast("Acerto copiado ✓");}
     }catch(e){try{await navigator.clipboard.writeText(txt);toast("Acerto copiado ✓");}catch(_){toast("Não consegui compartilhar");}}
   };
-  $("#dsadd").onclick=()=>openModal("Nova despesa",[
-    {id:"desc",label:"O que foi",placeholder:"Ex.: jantar no Hofbräuhaus"},
-    {id:"valor",label:"Valor",type:"money",placeholder:"0,00"},
-    {id:"moeda",label:"Moeda",type:"select",options:["EUR","BRL","USD"],value:"EUR"},
-    {id:"pagou",label:"Quem pagou",type:"select",options:PEOPLE,value:me},
-    {id:"entre",label:"Dividir entre",type:"chips",value:PEOPLE.slice()},
-    {id:"data",label:"Data",type:"date",value:hoje}
-  ],v=>{
-    if(!v.desc||v.valor<=0){toast("Preencha descrição e valor");return false;}
-    if(!v.entre.length){toast("Escolha entre quem dividir");return false;}
-    addArr("racha","despesas",{id:uid(),desc:v.desc,valor:v.valor,moeda:v.moeda,pagou:v.pagou,entre:v.entre,data:v.data||hoje});
-    toast("Despesa lançada");},"Lançar");
+  $("#dsadd").onclick=()=>despesaModal(null);
   const drest=$("#dsrest");if(drest)drest.onclick=abrirRestaurante;
 
   $("#p-racha").querySelectorAll("[data-quit]").forEach(b=>b.onclick=()=>{
@@ -3189,18 +3314,7 @@ function renderRacha(){_sujo.delete("racha");
     toastUndo("Despesa excluída",()=>addArr("racha","despesas",[it]));});
   $("#p-racha").querySelectorAll("[data-dedt]").forEach(b=>b.onclick=()=>{
     const d=(STATE.racha.despesas||[]).find(x=>x.id===b.dataset.dedt);if(!d)return;
-    openModal("Editar despesa",[
-      {id:"desc",label:"O que foi",value:d.desc,placeholder:"Ex.: jantar"},
-      {id:"valor",label:"Valor",type:"money",value:String(d.valor).replace(".",","),placeholder:"0,00"},
-      {id:"moeda",label:"Moeda",type:"select",options:["EUR","BRL","USD"],value:d.moeda||"EUR"},
-      {id:"pagou",label:"Quem pagou",type:"select",options:PEOPLE,value:d.pagou},
-      {id:"entre",label:"Dividir entre",type:"chips",value:(Array.isArray(d.entre)&&d.entre.length?d.entre:PEOPLE.slice())},
-      {id:"data",label:"Data",type:"date",value:d.data||hoje}
-    ],v=>{
-      if(!v.desc||v.valor<=0){toast("Preencha descrição e valor");return false;}
-      if(!v.entre.length){toast("Escolha entre quem dividir");return false;}
-      saveDoc("racha",{despesas:(STATE.racha.despesas||[]).map(x=>x.id===d.id?{id:d.id,desc:v.desc,valor:v.valor,moeda:v.moeda,pagou:v.pagou,entre:v.entre,data:v.data||hoje}:x)});
-      toast("Despesa atualizada");},"Salvar");});
+    despesaModal(d);});
   $("#p-racha").querySelectorAll("[data-pdl]").forEach(b=>b.onclick=()=>{
     const it=(STATE.racha.pagamentos||[]).find(x=>x.id===b.dataset.pdl);if(!it)return;
     delArr("racha","pagamentos",[it]);
