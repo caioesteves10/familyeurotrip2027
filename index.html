@@ -80,11 +80,11 @@ a{color:var(--mun)}
  padding:3px 9px;font-size:10.5px;font-weight:700;cursor:pointer}
 
 .strip{position:relative;background:var(--stripbg);color:var(--striptext);
- border:1px solid var(--stripbg);border-radius:var(--r);padding:13px 15px 12px;overflow:hidden;margin-bottom:8px;box-shadow:var(--shadowlg)}
+ border:1px solid var(--stripbg);border-radius:var(--r);padding:12px 15px 11px;overflow:hidden;margin-bottom:8px;box-shadow:var(--shadowlg)}
 .strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--orange)}
 .strip .route{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:rgba(255,255,255,.82);flex-wrap:wrap}
 .strip .route .ar{color:rgba(255,255,255,.4);font-weight:600}
-.strip h1{font-size:27px;margin:5px 0 3px}
+.strip h1{font-size:26px;margin:4px 0 2px}
 .strip .when{color:rgba(255,255,255,.72);font-size:12.5px;font-weight:600}
 .strip .cd{position:absolute;right:14px;top:12px;text-align:right}
 .wkchip{display:none}
@@ -92,14 +92,14 @@ a{color:var(--mun)}
  background:var(--orange);color:#fff;border-radius:99px;padding:3px 8px}
 .strip .cd .n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--par)}
 .strip .cd .u{font-size:9.5px;letter-spacing:.16em;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
-.perf{height:1px;margin:11px -15px 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px)}
-.fxconv{display:inline-flex;align-items:center;gap:7px;margin-top:11px;
- background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.28);
- border-radius:99px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer;
+.perf{height:1px;margin:9px -15px 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px)}
+.fxconv{display:inline-flex;align-items:center;gap:5px;margin-top:8px;
+ background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.22);
+ border-radius:99px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;
  transition:background .15s,transform .08s}
 .fxconv:hover{background:rgba(255,255,255,.2)}
 .fxconv:active{transform:scale(.96)}
-.fxconv svg{color:var(--orange)}
+.fxconv svg{color:var(--orange);width:12px;height:12px}
 
 /* ---------- painéis genéricos ---------- */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:9px;box-shadow:var(--shadow)}
@@ -390,9 +390,13 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .day .dh .d{font-family:'Bricolage Grotesque',Inter,sans-serif;font-size:16px;font-weight:800}
 .day .dh .c{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
 .day.par .dh .c{color:var(--par)} .day.mun .dh .c{color:var(--mun)} .day.ber .dh .c{color:var(--ber)}
-.act{display:flex;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:7px}
-.act .h{font-size:12px;font-weight:800;color:var(--muted);flex:0 0 42px;padding-top:1px}
-.act .b{flex:1;min-width:0}
+.day-count{font-size:10.5px;font-weight:800;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:1px 8px;flex:0 0 auto}
+.day-past{opacity:.62}
+.day-past .dot{background:var(--muted)!important;opacity:.6}
+.act{position:relative;display:flex;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:7px}
+.act .h{font-size:12.5px;font-weight:800;color:var(--navy);flex:0 0 46px;padding-top:1px;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.act .h .h-livre{color:var(--dim);font-weight:700;font-size:11px}
+.act .b{flex:1;min-width:0;border-left:1px solid var(--line);padding-left:11px}
 .act .b .n{font-size:14.5px;font-weight:600}
 .act .b .s{font-size:12px;color:var(--dim);margin-top:3px;line-height:1.5}
 .act .b .s a{word-break:break-all}
@@ -635,7 +639,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
       <h1 class="disp" id="tripname">Resenha Trip 2027</h1>
       <div class="when" id="tripwhen">—</div>
       <div class="perf"></div>
-      <div class="route" style="margin-top:11px;font-size:11.5px" id="fxline">—</div>
+      <div class="route" style="margin-top:9px;font-size:11.5px" id="fxline">—</div>
       <button id="fxconv" class="fxconv" type="button">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h14l-3-3M17 14H3l3 3"/></svg>
         <span>Simular conversão</span>
@@ -2599,12 +2603,15 @@ function renderRoteiro(){_sujo.delete("roteiro");
   ${diasView.length?diasView.map(d=>{
     const c=cityOf(d.cidade);
     const dpast=emV&&String(d.data).slice(0,10)<hojeKey;
-    return `<div class="day ${esc(d.cidade)}"><div class="dot"></div>
+    const horaVal=h=>(!h||h==="—")?"00:00":String(h);
+    const itensOrd=(d.itens||[]).slice().sort((a,b)=>horaVal(a.hora).localeCompare(horaVal(b.hora)));
+    return `<div class="day ${esc(d.cidade)} ${dpast?"day-past":""}"><div class="dot"></div>
       <div class="dh"><div class="d">${fmtDate(d.data)}</div><div class="c">${esc(c.n)}</div>
         <div class="grow" style="font-size:13px;color:var(--muted);font-weight:600">${esc(d.titulo||"")}</div>
+        ${itensOrd.length?`<span class="day-count">${itensOrd.length}</span>`:""}
         ${adm?`<button class="x" data-ddel="${d.id}" aria-label="Excluir dia">✕</button>`:""}</div>
-      ${(d.itens||[]).map(a=>`<div class="act ${feitoDe(a)?"act-done":""}">
-        ${emV?`<button class="actcheck ${feitoDe(a)?"on":""}" data-adone="${d.id}|${a.id}" aria-label="${feitoDe(a)?"Desmarcar":"Marcar como feito"}">${feitoDe(a)?"✓":""}</button>`:`<div class="h">${esc(a.hora||"—")}</div>`}
+      ${itensOrd.map(a=>`<div class="act ${feitoDe(a)?"act-done":""}">
+        ${emV?`<button class="actcheck ${feitoDe(a)?"on":""}" data-adone="${d.id}|${a.id}" aria-label="${feitoDe(a)?"Desmarcar":"Marcar como feito"}">${feitoDe(a)?"✓":""}</button>`:`<div class="h">${a.hora&&a.hora!=="—"?esc(a.hora):`<span class="h-livre">livre</span>`}</div>`}
         <div class="b"><div class="n">${emV&&a.hora&&a.hora!=="—"?`<span style="color:var(--dim);font-weight:700">${esc(a.hora)}</span> `:""}${esc(a.titulo)}</div>${a.nota?`<div class="s">${esc(a.nota)}</div>`:""}
           ${Number(a.valor)>0?`<div class="s"><b style="color:var(--ber)">${fmtIn(a.valor,a.moeda||"EUR")}</b> · ${(!Array.isArray(a.quem)||a.quem.length>=PEOPLE.length)?"todos":a.quem.map(esc).join(", ")} · ${fmt(toBRL(a.valor,a.moeda||"EUR")/((Array.isArray(a.quem)&&a.quem.length)?a.quem.length:PEOPLE.length))} cada</div>`:""}</div>
         ${adm?`<button class="x" data-adel="${d.id}|${a.id}" aria-label="Excluir">✕</button>`:""}</div>`).join("")}
