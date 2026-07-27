@@ -182,6 +182,24 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .mala-fillrect{transition:y .5s cubic-bezier(.2,.7,.3,1),height .5s cubic-bezier(.2,.7,.3,1)}
 .mala-heroinfo{flex:1;min-width:0}
 .mala-msg{font-size:12.5px;font-weight:700;color:var(--orange);margin-top:2px}
+.mala-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.16);overflow:hidden;margin-top:8px}
+.mala-bar i{display:block;height:100%;border-radius:99px;background:var(--orange);transition:width .5s cubic-bezier(.3,1,.4,1)}
+.mala-bar.sm{height:5px;background:var(--panel2);margin-top:5px}
+.mala-bar.sm i{background:var(--navy)}
+.mala-bar.sm i.done{background:var(--ok)}
+.malaprog[hidden]{display:none}
+.malaprog{margin-bottom:6px}
+.mpg-row{margin-bottom:9px}
+.mpg-top{display:flex;align-items:center;font-size:12.5px;font-weight:700}
+.mpg-cat{display:inline-flex;align-items:center;color:var(--text)}
+.mpg-n{margin-left:auto;color:var(--muted);font-size:11.5px}
+.mala-tpl-row{display:flex;gap:14px;align-items:center;margin-top:10px;font-size:12.5px}
+.mala-tpl-row .lnk{font-weight:700}
+.tpl-list{display:flex;flex-direction:column;gap:8px}
+.tpl-it{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:12px}
+.tpl-info{flex:1;min-width:0}
+.tpl-n{font-size:14px;font-weight:700}
+.tpl-s{font-size:11.5px;color:var(--muted);margin-top:1px}
 .li .t .s{font-size:11.5px;color:var(--dim);margin-top:2px;font-weight:600}
 /* divisor de restaurante */
 .rest-box{max-width:520px}
@@ -1139,7 +1157,7 @@ function listen(){
   doc1("racha","racha",SEED.racha);
   FB.onSnapshot(FB.collection(db,NS.pessoas),opts,s=>{
     PEOPLE.forEach(p=>{if(!STATE.pessoas[p])STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};});
-    s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,verba:Number(v.verba)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[]};});
+    s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,verba:Number(v.verba)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[],malaTpls:v.malaTpls||[]};});
     marcarPend("pessoas",s.metadata);renderAll();});
   atualizarSync();
 }
@@ -1258,7 +1276,7 @@ function mostrarIntro(forcado){
   if(!forcado){try{if(localStorage.getItem(LS.intro)==="1")return;}catch(e){}}
   const desk=_ehDesktop();
   const abrir=desk?"Clique":"Toque";
-  const dicaVia=["via",`O botão <b>✈ no topo</b> liga o <b>modo viagem</b>: reorganiza as abas para o dia a dia e mostra seu gasto em tempo real. Tem 3 estados — automático (segue as datas), ligado e desligado.`];
+  const dicaVia=["via",`O botão <b>✈ no topo</b> liga e desliga o <b>modo viagem</b>: reorganiza as abas para o dia a dia e mostra seu gasto em tempo real. Ele liga sozinho na data da viagem, mas você pode ligar antes ou desligar quando quiser.`];
   const dicas=desk?[
     ["inicio",`<b>Início</b> reúne o resumo da viagem. Clique em qualquer cartão pra abrir a aba inteira.`],
     dicaVia,
@@ -1394,11 +1412,12 @@ function animarNumeros(){
 $("#themebtn").onclick=toggleTheme;
 $("#fab").onclick=quickGasto;
 $("#viabtn").onclick=()=>{
-  const seq={auto:"on",on:"off",off:"auto"},atual=viaMode(),novo=seq[atual]||"on";
+  // 2 estados: liga/desliga. O clique define o oposto do estado atual e
+  // esse ajuste vale até a pessoa mudar de novo. Sem override, o modo
+  // liga sozinho na data de início (piso automático).
+  const novo=emViagem()?"off":"on";
   try{localStorage.setItem(LS.viamode,novo);}catch(e){}
-  // ao forçar modo viagem, permite que o auto-jump pra Roteiro volte a acontecer se quiser
-  const nomes={auto:"Modo viagem: automático (segue as datas)",on:"Modo viagem: ligado",off:"Modo viagem: desligado (planejamento)"};
-  toast(nomes[novo]);
+  toast(novo==="on"?"Modo viagem ligado ✈":"Modo viagem desligado");
   vibrar(12);
   syncViaBtn();
   buildNav();
@@ -1408,11 +1427,11 @@ $("#viabtn").onclick=()=>{
 };
 function syncViaBtn(){
   const b=$("#viabtn");if(!b)return;
-  const m=viaMode(),ativo=emViagem();
-  b.classList.toggle("on",m!=="auto");        // laranja quando há override manual
-  b.classList.toggle("viaoff",m==="off");
-  b.dataset.mode=m;
-  b.title=m==="auto"?"Modo viagem: automático":(m==="on"?"Modo viagem: ligado":"Modo viagem: desligado");
+  const ativo=emViagem();
+  b.classList.toggle("on",ativo);          // laranja quando o modo viagem está ativo
+  b.classList.remove("viaoff");
+  b.dataset.mode=ativo?"on":"off";
+  b.title=ativo?"Modo viagem ligado (toque para desligar)":"Modo viagem desligado (toque para ligar)";
   b.setAttribute("aria-label",b.title);
 }
 $("#adminkey").onclick=()=>{show("admin");renderAdmin();if(!isAdmin())setTimeout(()=>{const i=$("#apin");if(i)i.focus();},60);};
@@ -2143,6 +2162,65 @@ function verbaModal(){
   },"Salvar");
 }
 
+/* ---- templates de mala (por pessoa) -------------------------------
+   A pessoa pode salvar a lista atual como um template nomeado (ex.:
+   "Europa frio") e recarregar depois numa próxima viagem, sem montar
+   tudo de novo. Carregar adiciona os itens que faltam, sem duplicar. */
+function malaTplSalvar(){
+  const me=STATE.me;if(!me)return;
+  const mala=meDoc().mala||[];
+  if(!mala.length){toast("A lista está vazia");return;}
+  openModal("Salvar como template",[
+    {id:"nome",label:"Nome do template",value:"",placeholder:"Ex.: Europa frio, Praia…"}
+  ],v=>{
+    if(!v.nome){toast("Dê um nome ao template");return false;}
+    const tpls=(meDoc().malaTpls||[]).slice();
+    const itens=mala.map(i=>({item:i.item,cat:i.cat||""}));
+    const jaTem=tpls.findIndex(t=>t.nome.toLowerCase()===v.nome.toLowerCase());
+    if(jaTem>-1)tpls[jaTem]={id:tpls[jaTem].id,nome:v.nome,itens};
+    else tpls.push({id:uid(),nome:v.nome,itens});
+    savePessoa(me,{malaTpls:tpls});
+    toast("Template salvo ✓");
+  },"Salvar template");
+}
+function malaTplCarregar(){
+  const me=STATE.me;if(!me)return;
+  const tpls=meDoc().malaTpls||[];
+  if(!tpls.length){
+    $("#modal").innerHTML=`<div class="modal"><div class="box"><h3>Templates de mala</h3>
+      <div class="note" style="margin:2px 0 12px">Você ainda não salvou nenhum template. Monte sua mala e toque em <b>salvar esta lista</b> para reaproveitar depois.</div>
+      <button class="btn" id="mtpl-x">Entendi</button></div></div>`;
+    const c=()=>{$("#modal").innerHTML="";};$("#mtpl-x").onclick=c;
+    $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)c();};
+    return;
+  }
+  $("#modal").innerHTML=`<div class="modal"><div class="box"><h3>Usar um template</h3>
+    <div class="note" style="margin:2px 0 10px">Adiciona os itens à sua mala (sem duplicar o que já existe).</div>
+    <div class="tpl-list">${tpls.map(t=>`<div class="tpl-it">
+      <div class="tpl-info"><div class="tpl-n">${esc(t.nome)}</div><div class="tpl-s">${t.itens.length} ${t.itens.length===1?"item":"itens"}</div></div>
+      <button class="btn sm" data-tload="${t.id}">Usar</button>
+      <button class="x" data-tdel="${t.id}" aria-label="Excluir template">✕</button>
+    </div>`).join("")}</div>
+    <button class="btn gh" id="mtpl-x" style="margin-top:10px">Fechar</button></div></div>`;
+  const close=()=>{$("#modal").innerHTML="";};
+  $("#mtpl-x").onclick=close;
+  $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)close();};
+  $("#modal").querySelectorAll("[data-tload]").forEach(b=>b.onclick=()=>{
+    const t=tpls.find(x=>x.id===b.dataset.tload);if(!t)return;
+    const mala=(meDoc().mala||[]).slice();
+    const existentes=new Set(mala.map(i=>(i.item||"").toLowerCase().trim()));
+    let add=0;
+    t.itens.forEach(it=>{const k=(it.item||"").toLowerCase().trim();if(k&&!existentes.has(k)){
+      mala.push({id:uid(),item:it.item,ok:false,cat:it.cat||""});existentes.add(k);add++;}});
+    savePessoa(me,{mala});
+    close();toast(add?`${add} ${add===1?"item adicionado":"itens adicionados"} ✓`:"Todos os itens já estavam na lista");
+  });
+  $("#modal").querySelectorAll("[data-tdel]").forEach(b=>b.onclick=()=>{
+    const tpls2=(meDoc().malaTpls||[]).filter(x=>x.id!==b.dataset.tdel);
+    savePessoa(me,{malaTpls:tpls2});toast("Template excluído");malaTplCarregar();
+  });
+}
+
 function renderCofre(){_sujo.delete("cofre");
   const me=STATE.me,d=meDoc();
   const meta=metaDe(me),sav=guardado(me),falta=Math.max(0,meta-sav);
@@ -2751,6 +2829,9 @@ function renderCheck(){_sujo.delete("check");
   const malaView=malaCats.length?mala.filter(i=>malaCats.includes(i.cat||"Geral")):mala;
   const mFalta=malaView.filter(i=>!i.ok),mPronto=malaView.filter(i=>i.ok);
   const dias=daysTo(STATE.config.inicio);
+  // progresso por categoria (para o resumo escaneável) — depois de catsMala
+  const malaCatProg=catsMala.map(c=>{const its=mala.filter(i=>(i.cat||"Geral")===c);const ok=its.filter(i=>i.ok).length;
+    return {cat:c,ok,tot:its.length,pct:its.length?Math.round(ok/its.length*100):0};});
 
   $("#p-check").innerHTML=`
   <div class="seg" id="ckseg">
@@ -2822,6 +2903,7 @@ function renderCheck(){_sujo.delete("check");
         <div class="lbl" style="color:rgba(255,255,255,.8)">Mala de ${esc(me)}</div>
         <div class="disp" style="font-size:26px;color:#fff">${mOk} <span style="font-size:14px;color:rgba(255,255,255,.7);font-family:Inter">de ${mala.length} itens</span></div>
         <div class="mala-msg">${!mala.length?"Bora começar a arrumar?":mpct===100?"Mala pronta! Bon voyage ✈️":dias>0&&dias<=30?`Faltam ${dias} dias — ${mpct}% arrumado`:`${mpct}% arrumado`}</div>
+        ${mala.length?`<div class="mala-bar"><i style="width:${mpct}%"></i></div>`:""}
       </div>
     </div>
 
@@ -2834,9 +2916,21 @@ function renderCheck(){_sujo.delete("check");
           <datalist id="malacatlist">${catsMala.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
         <button class="btn sm" id="mladd">Add</button>
       </div>
+      <div class="mala-tpl-row">
+        <span class="lnk" id="mtpl-load">📋 Usar um template</span>
+        ${mala.length?`<span class="lnk" id="mtpl-save">salvar esta lista</span>`:""}
+      </div>
     </div>
 
     ${catsMala.length?`<div class="catfilter">${["__todas"].concat(catsMala).map(c=>`<span class="catchip ${(c==="__todas"?malaCats.length===0:malaCats.includes(c))?"on":""}" data-mcatf="${esc(c)}">${c==="__todas"?"Todas":catDot(c)+esc(c)}</span>`).join("")}</div>`:""}
+
+    ${catsMala.length>1?`<button class="mais-btn" id="malaprog-btn" aria-expanded="false" aria-controls="malaprog"><span>Ver progresso por categoria</span><span class="mais-ch">⌄</span></button>
+    <div class="malaprog" id="malaprog" hidden>
+      ${malaCatProg.map(p=>`<div class="mpg-row">
+        <div class="mpg-top"><span class="mpg-cat">${catDot(p.cat)}${esc(p.cat)}</span><span class="mpg-n">${p.ok}/${p.tot}</span></div>
+        <div class="mala-bar sm"><i style="width:${p.pct}%" class="${p.pct===100?"done":""}"></i></div>
+      </div>`).join("")}
+    </div>`:""}
 
     ${mFalta.length?`<div class="sect">Ainda na lista<span class="r">${mFalta.length}</span></div>`+
       mFalta.map(i=>`<div class="li">
@@ -2891,6 +2985,12 @@ function renderCheck(){_sujo.delete("check");
     $("#mln").value="";$("#mlcat").value="";
     setTimeout(()=>{const i=$("#mln");if(i)i.focus();},40);};
   const mla=$("#mladd");if(mla)mla.onclick=maladd;
+  const mtL=$("#mtpl-load");if(mtL)mtL.onclick=malaTplCarregar;
+  const mtS=$("#mtpl-save");if(mtS)mtS.onclick=malaTplSalvar;
+  const mpB=$("#malaprog-btn"),mpBox=$("#malaprog");
+  if(mpB&&mpBox)mpB.onclick=()=>{const abrir=mpBox.hidden;mpBox.hidden=!abrir;
+    mpB.setAttribute("aria-expanded",abrir?"true":"false");mpB.classList.toggle("aberto",abrir);
+    mpB.querySelector("span").textContent=abrir?"Ocultar progresso por categoria":"Ver progresso por categoria";};
   const mln=$("#mln");if(mln)mln.addEventListener("keydown",e=>{if(e.key==="Enter")maladd();});
   const mlcat=$("#mlcat");if(mlcat)mlcat.addEventListener("keydown",e=>{if(e.key==="Enter")maladd();});
   $("#p-check").querySelectorAll("[data-mcatf]").forEach(el=>el.onclick=()=>{
