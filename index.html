@@ -80,7 +80,7 @@ a{color:var(--mun)}
  padding:3px 9px;font-size:10.5px;font-weight:700;cursor:pointer}
 
 .strip{position:relative;background:var(--stripbg);color:var(--striptext);
- border:1px solid var(--stripbg);border-radius:var(--r);padding:12px 15px 11px;overflow:hidden;margin-bottom:8px;box-shadow:var(--shadowlg)}
+ border:1px solid var(--stripbg);border-radius:var(--r);padding:12px 15px 9px;overflow:hidden;margin-bottom:8px;box-shadow:var(--shadowlg)}
 .strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--orange)}
 .strip .route{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:rgba(255,255,255,.82);flex-wrap:wrap}
 .strip .route .ar{color:rgba(255,255,255,.4);font-weight:600}
@@ -93,13 +93,13 @@ a{color:var(--mun)}
 .strip .cd .n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--par)}
 .strip .cd .u{font-size:9.5px;letter-spacing:.16em;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
 .perf{height:1px;margin:9px -15px 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px)}
-.fxconv{display:inline-flex;align-items:center;gap:5px;margin-top:8px;
+.fxconv{display:inline-flex;align-items:center;gap:5px;margin-top:5px;
  background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.22);
- border-radius:99px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;
+ border-radius:99px;padding:3px 9px;font-size:10px;font-weight:700;cursor:pointer;
  transition:background .15s,transform .08s}
 .fxconv:hover{background:rgba(255,255,255,.2)}
 .fxconv:active{transform:scale(.96)}
-.fxconv svg{color:var(--orange);width:12px;height:12px}
+.fxconv svg{color:var(--orange);width:11px;height:11px}
 
 /* ---------- painéis genéricos ---------- */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:9px;box-shadow:var(--shadow)}
@@ -437,6 +437,16 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
 .maplink:hover{text-decoration:underline}
 .maplink:active{opacity:.7}
 .maplink.on-dark{color:#fff;opacity:.94}
+/* reservas & documentos */
+.resv{margin-bottom:8px}
+.resv .row{align-items:flex-start;gap:8px}
+.resv-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px}
+.resv-t{font-size:15px;font-weight:700;color:var(--navy);line-height:1.3}
+.resv .s{font-size:12.5px;color:var(--dim);margin-top:4px;line-height:1.55}
+.resv .s b{color:var(--navy);font-variant-numeric:tabular-nums}
+.resv-who{font-size:11px;color:var(--muted);font-weight:700}
+.resv-links{display:flex;flex-wrap:wrap;gap:14px;margin-top:6px}
+.resv-copy{margin-left:6px;font-size:11px;color:var(--mun);font-weight:700;cursor:pointer;background:none;border:none;padding:0;text-decoration:underline}
 /* passeio marcado como feito durante a viagem */
 .act.act-done{opacity:.55}
 .act.act-done .b .n{text-decoration:line-through;text-decoration-color:var(--dim)}
@@ -693,6 +703,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
     <section class="panel-v" id="p-compras"></section>
     <section class="panel-v" id="p-check"></section>
     <section class="panel-v" id="p-racha"></section>
+    <section class="panel-v" id="p-reservas"></section>
     <section class="panel-v" id="p-admin"></section>
 
     <div class="foot" id="foot">Faltam poucos meses de disciplina — depois é só aproveitar. 🍂</div>
@@ -820,6 +831,7 @@ const DATA={
       {id:"c13",cat:"Reserva",desc:"Imprevistos e emergências",valor:600,moeda:"EUR",quem:"todos"}
     ]},
     racha:{despesas:[],pagamentos:[]},
+    reservas:{itens:[]},
     checklistModelo:[
       "Passaporte válido por 6 meses após a volta",
       "Autorização ETIAS aprovada",
@@ -869,6 +881,7 @@ const STATE={
   roteiro:JSON.parse(JSON.stringify(SEED.roteiro)),
   custos:JSON.parse(JSON.stringify(SEED.custos)),
   racha:JSON.parse(JSON.stringify(SEED.racha)),
+  reservas:JSON.parse(JSON.stringify(SEED.reservas)),
   pessoas:{},
   me:localStorage.getItem(LS.me)||null,
   cur:localStorage.getItem(LS.cur)||""
@@ -1063,6 +1076,12 @@ function mapBtn(local,cidKey,cls){
   if(!local)return "";
   return `<a class="maplink ${cls||""}" href="${esc(mapsUrl(local,cidKey))}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir no mapa">${PIN}<span>${esc(local)}</span></a>`;
 }
+const LINKIC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg>';
+function linkBtn(url,label){
+  if(!url)return "";
+  let u=String(url);if(!/^https?:\/\//i.test(u))u="https://"+u;
+  return `<a class="maplink" href="${esc(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir link">${LINKIC}<span>${esc(label||"abrir link")}</span></a>`;
+}
 const sameDay=(base)=>String(base).slice(0,10)===new Date().toISOString().slice(0,10);
 
 /* ---- 5. FIREBASE --------------------------------------- */
@@ -1188,6 +1207,7 @@ function listen(){
   doc1("roteiro","roteiro",SEED.roteiro);
   doc1("custos","custos",SEED.custos);
   doc1("racha","racha",SEED.racha);
+  doc1("reservas","reservas",SEED.reservas);
   FB.onSnapshot(FB.collection(db,NS.pessoas),opts,s=>{
     PEOPLE.forEach(p=>{if(!STATE.pessoas[p])STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};});
     s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,verba:Number(v.verba)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[],malaTpls:v.malaTpls||[]};});
@@ -1198,12 +1218,12 @@ function loadLocal(){
   try{
     const raw=localStorage.getItem(LS.mock);
     if(raw){const o=JSON.parse(raw);
-      ["config","roteiro","custos","racha"].forEach(k=>{if(o[k])STATE[k]=Object.assign({},SEED[k],o[k]);});
+      ["config","roteiro","custos","racha","reservas"].forEach(k=>{if(o[k])STATE[k]=Object.assign({},SEED[k],o[k]);});
       if(o.pessoas)PEOPLE.forEach(p=>{if(o.pessoas[p])STATE.pessoas[p]=Object.assign(STATE.pessoas[p],o.pessoas[p]);});}
   }catch(e){console.warn(e);}
 }
 function saveLocal(){
-  try{localStorage.setItem(LS.mock,JSON.stringify({config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,pessoas:STATE.pessoas}));}catch(e){}
+  try{localStorage.setItem(LS.mock,JSON.stringify({config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,reservas:STATE.reservas,pessoas:STATE.pessoas}));}catch(e){}
 }
 async function saveDoc(id,obj){
   STATE[id]=Object.assign({},STATE[id],obj);
@@ -1368,11 +1388,12 @@ const ICON={
   compras:'<path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   check:'<path d="M9 4h6a1 1 0 0 1 1 1a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2a1 1 0 0 1 1-1Z"/><path d="M8 5H5v16h14V5h-3"/><path d="m9 13 2 2 4-4"/>',
   racha:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M14.5 9.2c-.6-.9-4.5-1.4-4.5 1s5 1.2 5 3.4-3.9 2-4.8.9"/>',
-  admin:'<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/>'
+  admin:'<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/>',
+  reservas:'<path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4Z"/><path d="M14 6v12"/>'
 };
 const svgIcon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||""}</svg>`;
-const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["check","Checklist"],["racha","Racha"]];
-const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["racha","Racha"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
+const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["reservas","Reservas"],["check","Checklist"],["racha","Racha"]];
+const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["reservas","Reservas"],["racha","Racha"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
 function emViagemAuto(){const c=STATE.config;return daysTo(c.inicio)<=0&&daysTo(c.fim)>=0;}
 /* modo viagem: "auto" segue as datas; "on"/"off" forçam manualmente (por aparelho) */
 function viaMode(){try{return localStorage.getItem(LS.viamode)||"auto";}catch(e){return "auto";}}
@@ -1515,7 +1536,7 @@ function migrarMinhasCompras(){
   if(_compraMigrada)return;
   const me=STATE.me;if(!me||!STATE.pessoas[me])return;
   const compras=meDoc().compras||[];
-  if(!compras.length){_compraMigrada=true;return;}
+  if(!compras.length)return;   // não latcheia quando vazio: compras chegam pelo listener depois
   const pessoais=(meDoc().pessoais||[]).slice();
   compras.forEach(c=>{
     const desc=c.onde?`${c.item} (${c.onde})`:c.item;
@@ -1531,7 +1552,7 @@ let _rendering=false;
    Agora só o painel visível é redesenhado; os outros ficam marcados como
    "sujos" e se redesenham na hora em que você entra neles.              */
 const RENDERS={inicio:()=>renderInicio(),cofre:()=>renderCofre(),custos:()=>renderCustos(),roteiro:()=>renderRoteiro(),
-  compras:()=>renderCompras(),check:()=>renderCheck(),racha:()=>renderRacha(),admin:()=>renderAdmin()};
+  compras:()=>renderCompras(),check:()=>renderCheck(),racha:()=>renderRacha(),reservas:()=>renderReservas(),admin:()=>renderAdmin()};
 const _sujo=new Set(Object.keys(RENDERS));
 function renderPainel(t){
   const f=RENDERS[t];if(!f)return;
@@ -2418,6 +2439,7 @@ function comparativo(p){
 
 /* ---- 11. CUSTOS (orçamento) ---------------------------- */
 let custosView=localStorage.getItem("tr27_csub")||"grupo";
+let _custosSig=null;
 let outrosCats=[];  // filtro de categorias na aba Outros Gastos (vazio = todas)
 function renderCustos(){_sujo.delete("custos");
   const me=STATE.me;
@@ -2435,7 +2457,19 @@ function renderCustos(){_sujo.delete("custos");
 
   const cmp=comparativo(me), reals=meusRealizados(me).slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
 
-  $("#p-custos").innerHTML=`
+  const _difTxt=Math.abs(cmp.dif)<0.005?"Em linha com o planejado.":
+    (cmp.dif>0?`<b style="color:var(--danger)">${fmt(cmp.dif)} acima</b> do planejado até agora.`:
+    `<b style="color:var(--ok)">${fmt(-cmp.dif)} abaixo</b> do planejado até agora.`);
+  const cardRealTopo=`
+  <div class="card tight">
+    <div class="row"><div class="grow"><div class="lbl">Planejado (seu total)</div>
+      <div class="disp money" style="font-size:24px">${fmt(cmp.plan)}</div></div>
+    <div style="text-align:right"><div class="lbl">Já gastei de verdade</div>
+      <div class="disp money" style="font-size:24px">${fmt(cmp.real)}</div></div>${infoBtn("Aqui comparamos o que você já pagou de verdade (seus lançamentos abaixo) com o seu plano total.")}</div>
+    <div class="rail ${cmp.dif>0.5?"dgr":"ok"}" style="margin:12px 0 8px"><i style="width:${cmp.plan>0?clamp(cmp.real/cmp.plan*100,0,100):0}%"></i></div>
+    <div class="note" style="margin:0">${_difTxt}</div>
+  </div>`;
+  const cardSuaViagem=`
   <div class="card tight">
     <div class="row"><div class="grow">
       <div class="lbl">Sua viagem custa</div>
@@ -2450,7 +2484,11 @@ function renderCustos(){_sujo.delete("custos");
       <div class="kpi"><div class="k">Total do grupo</div><div class="v money">${fmt(tot+totPess)}</div></div>
       <div class="kpi ok"><div class="k">Sua meta</div><div class="v money">${fmt(orcamentoDe(me))}</div></div>
     </div>`}
-  </div>
+  </div>`;
+  const topCard=custosView==="real"?cardRealTopo:cardSuaViagem;
+
+  $("#p-custos").innerHTML=`
+  ${topCard}
 
   <div class="seg" id="cseg">
     ${(emViagem()?
@@ -2461,12 +2499,7 @@ function renderCustos(){_sujo.delete("custos");
   <div class="cseg-hint note">${({grupo:"Plano: quanto a viagem custa para cada um e por categoria.",itens:"Itens: os custos do grupo (hospedagem, transporte…) e como são rateados.",meus:"Meus gastos: suas compras e extras pessoais, que entram só na sua meta.",real:"Já gastei: o que você já pagou de verdade, comparado com o plano."})[custosView]||""}</div>
 
   <div class="${custosView==="grupo"?"":"hidden"}">
-    <div class="note" style="margin:2px 0 10px">Seu total já está no resumo acima. Abra para comparar o plano de todos e ver por categoria.</div>
-    <button class="mais-btn" id="plano-mais-btn" aria-expanded="false" aria-controls="plano-mais"><span>Ver plano de todos e por categoria</span><span class="mais-ch">⌄</span></button>
-    <div class="plano-mais" id="plano-mais" hidden>
-    <div class="dtwo">
-    <div class="dcol">
-    <div class="sect" style="margin-top:0">Total por pessoa<span class="r">o plano de cada um</span></div>
+    <div class="sect" style="margin-top:2px">Total por pessoa<span class="r">o plano de cada um</span></div>
     <div class="card">
       <table class="tb"><thead><tr><th>Pessoa</th><th><span class="hint" data-hint="O que precisa estar guardado antes de embarcar.">Meta</span></th><th><span class="hint" data-hint="Passagem aérea — fica fora da meta porque vai parcelada no cartão.">Passagem</span></th><th><span class="hint" data-hint="Custo real total da viagem para essa pessoa (meta + passagem).">Total</span></th></tr></thead><tbody>
       ${PEOPLE.map(p=>`<tr class="${p===me?"me":""}"><td>${esc(p)}</td><td class="money">${fmt(orcamentoDe(p))}</td>
@@ -2475,8 +2508,8 @@ function renderCustos(){_sujo.delete("custos");
         <td class="money">${fmt(tot-totalMeta())}</td><td class="money">${fmt(tot+totPess)}</td></tr></tfoot></table>
       <div class="note"><b>Meta</b> é o que precisa estar guardado antes de embarcar. <b>Passagem</b> fica de fora porque vai parcelada. <b>Total</b> é o custo real da viagem para cada um.</div>
     </div>
-    </div>
-    <div class="dcol">
+    <button class="mais-btn" id="plano-mais-btn" aria-expanded="false" aria-controls="plano-mais"><span>Ver plano por categoria</span><span class="mais-ch">⌄</span></button>
+    <div class="plano-mais" id="plano-mais" hidden>
     <div class="sect" style="margin-top:0">Por categoria<span class="r">sua parte</span></div>
     <div class="card">
       <table class="tb"><thead><tr><th>Categoria</th><th>Total grupo</th><th>Você</th></tr></thead><tbody>
@@ -2484,8 +2517,6 @@ function renderCustos(){_sujo.delete("custos");
         `<tr><td><span class="td-cat">${catDot(c)}${esc(c)}</span></td><td class="money">${fmt(cats[c].tot)}</td><td class="money">${fmt(cats[c].meu)}</td></tr>`).join("")}
       </tbody></table>
       <div class="note">Inclui os itens do grupo (sua parte no rateio) e os seus gastos individuais e compras. Cada um vê a própria coluna.</div>
-    </div>
-    </div>
     </div>
     </div><!-- /plano-mais -->
   </div>
@@ -2503,7 +2534,7 @@ function renderCustos(){_sujo.delete("custos");
 
   <div class="${custosView==="meus"?"":"hidden"}">
     <button class="btn" id="pgadd">+ Novo gasto individual</button>
-    <div class="note" style="margin-bottom:9px">Seu orçamento pessoal junta os gastos daqui com os itens que têm preço na sua <b>lista de compras</b>. Tudo isso entra só na sua meta.</div>
+    <div class="note" style="margin-bottom:9px">Seus gastos individuais e extras — compras, lembrancinhas, o que for só seu. Tudo isso entra só na sua meta.</div>
     ${(()=>{
       const catsPess=[...new Set(pess.map(x=>x.cat||(x.de==="Compras"?"Compras":"Outros")))].sort();
       if(!catsPess.length)return "";
@@ -2514,24 +2545,14 @@ function renderCustos(){_sujo.delete("custos");
     ${(()=>{
       const lista=outrosCats.length?pess.filter(x=>outrosCats.includes(x.cat||(x.de==="Compras"?"Compras":"Outros"))):pess;
       return lista.length?lista.map(x=>`<div class="li"><div class="t"><div class="n">${esc(x.desc)}</div>
-      <div class="s">${x.de==="Compras"?"lista de compras":"gasto individual"}${x.cat?" · "+esc(x.cat):""} · ${fmt(toBRL(x.valor,x.moeda))}</div></div>
+      <div class="s">gasto individual${x.cat?" · "+esc(x.cat):""} · ${fmt(toBRL(x.valor,x.moeda))}</div></div>
       <div class="v money">${fmtIn(x.valor,x.moeda)}</div>
-      ${x.de==="Compras"?'<span class="pill" style="flex:0 0 auto">em Compras</span>':`<button class="x" data-pedit="${x.id}" aria-label="Editar">✎</button><button class="x" data-pdel="${x.id}" aria-label="Excluir">✕</button>`}</div>`).join(""):
+      <button class="x" data-pedit="${x.id}" aria-label="Editar">✎</button><button class="x" data-pdel="${x.id}" aria-label="Excluir">✕</button></div>`).join(""):
       (outrosCats.length?`<div class="empty">Nenhum gasto em ${outrosCats.map(c=>'"'+esc(c)+'"').join(", ")}.</div>`:'<div class="empty">Nenhum gasto individual.<br>Compras e extras pessoais entram aqui.</div>');
     })()}
   </div>
 
   <div class="${custosView==="real"?"":"hidden"}">
-    <div class="card tight">
-      <div class="row"><div class="grow"><div class="lbl">Planejado (seu total)</div>
-        <div class="disp money" style="font-size:22px">${fmt(cmp.plan)}</div></div>
-      <div style="text-align:right"><div class="lbl">Já gastei de verdade</div>
-        <div class="disp money" style="font-size:22px">${fmt(cmp.real)}</div></div></div>
-      <div class="rail" style="margin:12px 0 8px"><i style="width:${cmp.plan>0?clamp(cmp.real/cmp.plan*100,0,100):0}%"></i></div>
-      <div class="note" style="margin:0">${Math.abs(cmp.dif)<0.005?"Em linha com o planejado.":
-        (cmp.dif>0?`<b style="color:var(--danger)">${fmt(cmp.dif)} acima</b> do planejado até agora.`:
-        `<b style="color:var(--ok)">${fmt(-cmp.dif)} abaixo</b> do planejado até agora.`)}</div>
-    </div>
     <button class="btn" id="reladd">+ Lançar gasto realizado</button>
     <div class="note" style="margin-bottom:9px">Registre aqui o que já foi efetivamente pago (passagem, seguro, reservas). O app compara com o seu plano.</div>
     ${reals.length?`<div class="sect">Meus lançamentos<span class="r">${fmt(cmp.real)}</span></div>`+
@@ -2543,11 +2564,15 @@ function renderCustos(){_sujo.delete("custos");
       '<div class="empty">Nada lançado ainda.<br>Conforme for pagando, registre aqui para comparar com o plano.</div>'}
   </div>`;
 
+  const _sig=[Math.round(planoDe(me)*100),Math.round((cmp.real||0)*100),Math.round((cmp.plan||0)*100)].join("|");
+  if(_custosSig!==null&&_sig!==_custosSig)requestAnimationFrame(animarNumeros);
+  _custosSig=_sig;
+
   $("#cseg").querySelectorAll("[data-v]").forEach(el=>el.onclick=()=>{
     const sl=$("#cseg")?$("#cseg").scrollLeft:0;
     custosView=el.dataset.v;localStorage.setItem("tr27_csub",custosView);renderCustos();
     const seg=$("#cseg");if(seg)seg.scrollLeft=sl; // mantém a rolagem onde estava
-    requestAnimationFrame(animarNumeros);});
+    });
   $("#p-custos").querySelectorAll("[data-catf]").forEach(el=>el.onclick=()=>{
     const c=el.dataset.catf;
     if(c==="__todas")outrosCats=[];
@@ -2561,7 +2586,7 @@ function renderCustos(){_sujo.delete("custos");
   if(pmB&&pmBox)pmB.onclick=()=>{
     const abrir=pmBox.hidden;pmBox.hidden=!abrir;
     pmB.setAttribute("aria-expanded",abrir?"true":"false");pmB.classList.toggle("aberto",abrir);
-    pmB.querySelector("span").textContent=abrir?"Ocultar plano de todos":"Ver plano de todos e por categoria";
+    pmB.querySelector("span").textContent=abrir?"Ocultar categorias":"Ver plano por categoria";
     if(abrir)requestAnimationFrame(animarNumeros);
   };
 
@@ -3096,6 +3121,92 @@ function renderCheck(){_sujo.delete("check");
       toast("Item atualizado");},"Salvar");});
 }
 
+/* ---- 14c. RESERVAS & DOCUMENTOS ------------------------
+   Cofre offline das confirmações da viagem: voo, hotel, trem, seguro e
+   cópias de documentos. É um doc compartilhado (viagem/reservas): todo
+   mundo vê e pode adicionar. Cada item pode ter localizador, link e
+   endereço (abre no mapa). Excluir mostra "Desfazer".               */
+const RESV_TIPOS=["Voo","Hotel","Trem","Transfer","Passeio","Seguro","Documento","Outro"];
+function resvItens(){return ((STATE.reservas&&STATE.reservas.itens)||[]).slice();}
+function abrirFormReserva(at){
+  openModal(at?"Editar reserva":"Nova reserva",[
+    {id:"tipo",label:"Tipo",type:"select",options:RESV_TIPOS,value:at?at.tipo:"Hotel"},
+    {id:"titulo",label:"Título",placeholder:"Ex.: Hotel Paris — 5 noites",value:at?at.titulo:""},
+    {id:"quando",label:"Data (opcional)",type:"date",value:at?(at.quando||""):""},
+    {id:"codigo",label:"Localizador / confirmação (opcional)",placeholder:"Ex.: 6-QK2P9",value:at?(at.codigo||""):""},
+    {id:"link",label:"Link (opcional)",placeholder:"https://…",value:at?(at.link||""):""},
+    {id:"local",label:"Endereço / local — abre no mapa (opcional)",placeholder:"Ex.: 10 Rue de Rivoli, Paris",value:at?(at.local||""):""},
+    {id:"quem",label:"De quem é",type:"chips",value:(at&&Array.isArray(at.quem)&&at.quem.length)?at.quem.slice():PEOPLE.slice()},
+    {id:"nota",label:"Observação (opcional)",type:"area",placeholder:"opcional",value:at?(at.nota||""):""}
+  ],v=>{
+    if(!v.titulo){toast("Dê um título à reserva");return false;}
+    const item={id:at?at.id:uid(),tipo:v.tipo||"Outro",titulo:v.titulo};
+    if(v.quando)item.quando=v.quando;
+    if(v.codigo)item.codigo=v.codigo;
+    if(v.link)item.link=v.link;
+    if(v.local)item.local=v.local;
+    if(v.nota)item.nota=v.nota;
+    item.quem=(v.quem.length&&v.quem.length<PEOPLE.length)?v.quem:"todos";
+    if(at){saveDoc("reservas",{itens:resvItens().map(x=>x.id===at.id?item:x)});toast("Reserva atualizada");}
+    else{addArr("reservas","itens",item);toast("Reserva adicionada");}
+  });
+}
+function renderReservas(){_sujo.delete("reservas");
+  const itens=resvItens();
+  const ordTipo=t=>{const i=RESV_TIPOS.indexOf(t);return i<0?98:i;};
+  itens.sort((a,b)=>ordTipo(a.tipo)-ordTipo(b.tipo)||String(a.quando||"9999").localeCompare(String(b.quando||"9999")));
+  const cardItem=it=>{
+    const quem=(!Array.isArray(it.quem)||it.quem.length>=PEOPLE.length)?"":it.quem.map(esc).join(", ");
+    return `<div class="card resv">
+      <div class="row">
+        <div class="grow">
+          <div class="resv-top"><span class="pill">${esc(it.tipo||"Outro")}</span>${quem?`<span class="resv-who">${quem}</span>`:""}</div>
+          <div class="resv-t">${esc(it.titulo)}</div>
+          ${it.quando?`<div class="s">Data: <b>${esc(fmtDate(it.quando))}</b></div>`:""}
+          ${it.codigo?`<div class="s">Localizador: <b>${esc(it.codigo)}</b><button class="resv-copy" data-rescopy="${esc(it.codigo)}">copiar</button></div>`:""}
+          ${it.nota?`<div class="s">${esc(it.nota)}</div>`:""}
+          ${(it.link||it.local)?`<div class="resv-links">${linkBtn(it.link)}${mapBtn(it.local)}</div>`:""}
+        </div>
+        <button class="x" data-resedit="${it.id}" aria-label="Editar reserva">✎</button>
+        <button class="x" data-resdel="${it.id}" aria-label="Excluir reserva">✕</button>
+      </div>
+    </div>`;
+  };
+  let corpo;
+  if(!itens.length){
+    corpo=`<div class="empty">Nada guardado ainda.<br>Adicione a primeira reserva ou documento — fica disponível offline na viagem.</div>`;
+  }else{
+    corpo=RESV_TIPOS.map(tp=>{
+      const doTipo=itens.filter(x=>(x.tipo||"Outro")===tp);
+      if(!doTipo.length)return "";
+      return `<div class="sect">${esc(tp)}<span class="r">${doTipo.length}</span></div>`+doTipo.map(cardItem).join("");
+    }).join("");
+  }
+  $("#p-reservas").innerHTML=`
+  <div class="card tight">
+    <div class="row"><div class="grow">
+      <div class="lbl">Reservas & documentos</div>
+      <div class="disp" style="font-size:24px">${itens.length} <span style="font-size:14px;color:var(--muted);font-family:Inter">${itens.length===1?"item":"itens"}</span></div>
+    </div>
+    <button class="btn sm" id="resadd">+ Adicionar</button></div>
+    <div class="note" style="margin-top:8px">Localizador de voo, reservas de hotel, bilhetes de trem, seguro e cópias de documentos. É compartilhado: todo mundo vê e pode adicionar, e fica disponível offline durante a viagem.</div>
+  </div>
+  ${corpo}`;
+
+  const add=$("#resadd");if(add)add.onclick=()=>abrirFormReserva(null);
+  $("#p-reservas").querySelectorAll("[data-resedit]").forEach(b=>b.onclick=()=>{
+    const it=resvItens().find(x=>x.id===b.dataset.resedit);if(it)abrirFormReserva(it);});
+  $("#p-reservas").querySelectorAll("[data-resdel]").forEach(b=>b.onclick=()=>{
+    const it=resvItens().find(x=>x.id===b.dataset.resdel);if(!it)return;
+    delArr("reservas","itens",it);
+    toastUndo("Reserva excluída",()=>addArr("reservas","itens",it));});
+  $("#p-reservas").querySelectorAll("[data-rescopy]").forEach(b=>b.onclick=()=>{
+    const txt=b.dataset.rescopy;
+    const ok=()=>{vibrar(8);toast("Localizador copiado ✓");};
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(ok).catch(()=>toast(txt));}
+      else toast(txt);}catch(e){toast(txt);}});
+}
+
 /* ---- 15. RACHA (despesas e acerto) --------------------- */
 const fmtMO=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:MOEDA_VIAGEM(),
   minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v)||0);
@@ -3524,7 +3635,7 @@ function renderAdmin(){_sujo.delete("admin");
   const bke=$("#bkexp");
   if(bke)bke.onclick=()=>{
     const dump={app:"Resenha Trip",formato:1,quando:new Date().toISOString(),
-      config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,pessoas:STATE.pessoas};
+      config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,reservas:STATE.reservas,pessoas:STATE.pessoas};
     try{
       const blob=new Blob([JSON.stringify(dump,null,2)],{type:"application/json"});
       const a=document.createElement("a");
@@ -3550,6 +3661,7 @@ function renderAdmin(){_sujo.delete("admin");
       saveDoc("roteiro",o.roteiro||{dias:[]});
       saveDoc("custos",o.custos||{itens:[]});
       saveDoc("racha",o.racha||{despesas:[],pagamentos:[]});
+      saveDoc("reservas",o.reservas||{itens:[]});
       PEOPLE.forEach(p=>{if(o.pessoas[p])savePessoa(p,o.pessoas[p]);});
       bif.value="";toast("Backup restaurado ✓");
     };
