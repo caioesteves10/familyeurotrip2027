@@ -80,7 +80,7 @@ a{color:var(--mun)}
  padding:3px 9px;font-size:10.5px;font-weight:700;cursor:pointer}
 
 .strip{position:relative;background:var(--stripbg);color:var(--striptext);
- border:1px solid var(--stripbg);border-radius:var(--r);padding:12px 15px 9px;overflow:hidden;margin-bottom:8px;box-shadow:var(--shadowlg)}
+ border:1px solid var(--stripbg);border-radius:var(--r);padding:11px 15px 9px;overflow:hidden;margin-bottom:8px;box-shadow:var(--shadowlg)}
 .strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--orange)}
 .strip .route{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:rgba(255,255,255,.82);flex-wrap:wrap}
 .strip .route .ar{color:rgba(255,255,255,.4);font-weight:600}
@@ -92,14 +92,13 @@ a{color:var(--mun)}
  background:var(--orange);color:#fff;border-radius:99px;padding:3px 8px}
 .strip .cd .n{font-family:'Bricolage Grotesque',Inter,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--par)}
 .strip .cd .u{font-size:9.5px;letter-spacing:.16em;font-weight:800;color:rgba(255,255,255,.55);text-transform:uppercase}
-.perf{height:1px;margin:9px -15px 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px)}
-.fxconv{display:inline-flex;align-items:center;gap:5px;margin-top:5px;
- background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.22);
- border-radius:99px;padding:3px 9px;font-size:10px;font-weight:700;cursor:pointer;
- transition:background .15s,transform .08s}
-.fxconv:hover{background:rgba(255,255,255,.2)}
-.fxconv:active{transform:scale(.96)}
-.fxconv svg{color:var(--orange);width:11px;height:11px}
+.perf{height:1px;margin:7px -15px 0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.28) 0 6px,transparent 6px 12px)}
+.fxconvbtn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;margin-left:2px;
+ background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.22);
+ border-radius:99px;cursor:pointer;transition:background .15s,transform .08s;flex:0 0 auto}
+.fxconvbtn:hover{background:rgba(255,255,255,.2)}
+.fxconvbtn:active{transform:scale(.9)}
+.fxconvbtn svg{color:var(--orange)}
 
 /* ---------- painéis genéricos ---------- */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:9px;box-shadow:var(--shadow)}
@@ -686,11 +685,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
       <h1 class="disp" id="tripname">Resenha Trip 2027</h1>
       <div class="when" id="tripwhen">—</div>
       <div class="perf"></div>
-      <div class="route" style="margin-top:9px;font-size:11.5px" id="fxline">—</div>
-      <button id="fxconv" class="fxconv" type="button">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h14l-3-3M17 14H3l3 3"/></svg>
-        <span>Simular conversão</span>
-      </button>
+      <div class="route" style="margin-top:7px;font-size:11.5px" id="fxline">—</div>
     </div>
 
     <div id="offbar" class="warnbox hidden"></div>
@@ -1335,13 +1330,13 @@ function mostrarIntro(forcado){
     dicaVia,
     ["roteiro",`Use o <b>menu lateral à esquerda</b> pra ir de uma aba pra outra.`],
     ["racha",`Foram comer juntos? Em <b>Racha</b>, o botão <b>Dividir restaurante</b> separa a conta por item, gorjeta e quem pagou.`],
-    ["custos",`Clique em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`]
+    ["custos",`Clique no <b>⇄</b> ao lado das moedas (no card azul do topo) pra converter qualquer valor em real, euro ou dólar.`]
   ]:[
     ["inicio",`<b>Início</b> reúne o resumo da viagem. Toque em qualquer cartão pra abrir a aba inteira.`],
     dicaVia,
     ["roteiro",`<b>Arraste pro lado</b> na tela pra pular de uma aba pra outra, sem abrir o menu de baixo.`],
     ["racha",`Foram comer juntos? Em <b>Racha</b>, o botão <b>Dividir restaurante</b> separa a conta por item, gorjeta e quem pagou.`],
-    ["custos",`Toque em <b>Simular conversão</b> (no topo) pra ver qualquer valor em real, euro ou dólar.`]
+    ["custos",`Toque no <b>⇄</b> ao lado das moedas (no card azul do topo) pra converter qualquer valor em real, euro ou dólar.`]
   ];
   $("#modal").innerHTML=`<div class="modal"><div class="box">
     <div class="kicker" style="text-align:center;margin-bottom:2px">Paris · Munique · Berlim</div>
@@ -1602,8 +1597,9 @@ function renderHeader(){
   $("#fxline").innerHTML=
     `<span style="color:var(--dim)">€1 = ${fmtIn(rate("EUR"),"BRL")} · €1 = ${fmtIn(rate("EUR")/rate("USD"),"USD")}`+
     (viva?` <span style="color:var(--ok)">• ${esc(FXLIVE.src)} ${esc(hora)}</span>`:` <span style="color:var(--warn)">• taxa fixa</span>`)+`</span>`+
-    `<span style="margin-left:auto;display:flex;gap:4px">`+
+    `<span style="margin-left:auto;display:flex;gap:4px;align-items:center">`+
       ["BRL","USD","EUR"].map(m=>`<span class="pill ${STATE.cur===m?"ok":""}" data-cur="${m}" style="cursor:pointer">${m}</span>`).join("")+
+      `<button id="fxconv" class="fxconvbtn" type="button" title="Simular conversão" aria-label="Simular conversão"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h14l-3-3M17 14H3l3 3"/></svg></button>`+
     `</span>`;
   const cbtn=$("#fxconv");
   if(cbtn)cbtn.onclick=abrirCambio;
