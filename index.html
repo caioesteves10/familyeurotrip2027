@@ -64,6 +64,14 @@ a{color:var(--mun)}
 .iconbtn.on{border-color:var(--orange);color:var(--orange)}
 .iconbtn#viabtn.viaoff{border-color:var(--line2);color:var(--dim);position:relative}
 .iconbtn#viabtn.viaoff::after{content:"";position:absolute;left:3px;right:3px;top:50%;height:1.5px;background:var(--dim);transform:rotate(-20deg)}
+/* interruptor do modo viagem (avião) */
+.viasw{position:relative;width:46px;height:27px;border-radius:99px;border:none;background:#c9d2de;cursor:pointer;padding:0;flex:0 0 auto;transition:background .18s;-webkit-tap-highlight-color:transparent}
+[data-theme="dark"] .viasw{background:#3a4658}
+.viasw.on{background:var(--orange)}
+.viasw-knob{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .18s}
+.viasw.on .viasw-knob{transform:translateX(19px)}
+.viasw-knob svg{width:12px;height:12px;color:#8a94a3;transition:color .18s}
+.viasw.on .viasw-knob svg{color:var(--orange)}
 
 /* botão flutuante "+ gasto" (aparece no modo viagem) */
 .fab{position:fixed;z-index:45;right:16px;bottom:calc(70px + env(safe-area-inset-bottom));
@@ -674,8 +682,7 @@ label.f{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercas
     <div class="topbar">
       <span class="kicker" id="tagline">Viagem em família</span>
       <span class="me-chip"><span id="mename">—</span><button id="logout">trocar</button></span>
-      <button class="iconbtn" id="viabtn" title="Modo viagem" aria-label="Modo viagem"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3.2c.4-.9 1.6-.9 2 0l.3.8v5.3l7 4.1v1.9l-7-2.1v3.8l2 1.5v1.5l-3.3-1-3.3 1v-1.5l2-1.5v-3.8l-7 2.1v-1.9l7-4.1V4l.3-.8Z" fill="currentColor" stroke="none"/></svg></button>
-      <button class="iconbtn" id="themebtn" title="Alternar tema" aria-label="Alternar tema"><svg id="themeic" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></svg></button>
+      <button class="viasw" id="viabtn" role="switch" aria-checked="false" title="Modo viagem"><span class="viasw-knob"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3.2c.4-.9 1.6-.9 2 0l.3.8v5.3l7 4.1v1.9l-7-2.1v3.8l2 1.5v1.5l-3.3-1-3.3 1v-1.5l2-1.5v-3.8l-7 2.1v-1.9l7-4.1V4l.3-.8Z" fill="currentColor" stroke="none"/></svg></span></button>
     <button class="iconbtn" id="adminkey" title="Área do admin" aria-label="Área do admin"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19.4 13c.04-.33.06-.66.06-1s-.02-.67-.06-1l1.7-1.3a.5.5 0 0 0 .12-.64l-1.6-2.8a.5.5 0 0 0-.6-.22l-2 .8a7 7 0 0 0-1.7-1l-.3-2.1a.5.5 0 0 0-.5-.44h-3.2a.5.5 0 0 0-.5.44l-.3 2.1a7 7 0 0 0-1.7 1l-2-.8a.5.5 0 0 0-.6.22l-1.6 2.8a.5.5 0 0 0 .12.64L4.6 11c-.04.33-.06.66-.06 1s.02.67.06 1l-1.7 1.3a.5.5 0 0 0-.12.64l1.6 2.8a.5.5 0 0 0 .6.22l2-.8a7 7 0 0 0 1.7 1l.3 2.1a.5.5 0 0 0 .5.44h3.2a.5.5 0 0 0 .5-.44l.3-2.1a7 7 0 0 0 1.7-1l2 .8a.5.5 0 0 0 .6-.22l1.6-2.8a.5.5 0 0 0-.12-.64L19.4 13Z"/></svg></button>
     </div>
 
@@ -890,14 +897,14 @@ PEOPLE.forEach(p=>STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],
 /* ---- 4. UTILITÁRIOS ------------------------------------ */
 const SUN='<circle cx="12" cy="12" r="4.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>';
 const MOON='<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/>';
+function temaSO(){try{return (window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}catch(e){return "light";}}
 function applyTheme(t){
   document.documentElement.setAttribute("data-theme",t==="dark"?"dark":"light");
-  const ic=document.getElementById("themeic");if(ic)ic.innerHTML=t==="dark"?SUN:MOON;
   const mt=document.querySelector('meta[name=theme-color]');if(mt)mt.setAttribute("content",t==="dark"?"#0D1526":"#EEF2F8");
-  try{localStorage.setItem("tr27_theme",t);}catch(e){}
 }
-function toggleTheme(){applyTheme((localStorage.getItem("tr27_theme")==="dark")?"light":"dark");}
-applyTheme(localStorage.getItem("tr27_theme")||"light");
+/* o tema segue automaticamente o claro/escuro do aparelho */
+applyTheme(temaSO());
+try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",e=>applyTheme(e.matches?"dark":"light"));}catch(e){}
 const $=s=>document.querySelector(s);
 const vibrar=(ms=12)=>{try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}};
 const $$=s=>Array.from(document.querySelectorAll(s));
@@ -1417,10 +1424,8 @@ $("#enter").onclick=async()=>{
 $("#pin").addEventListener("keydown",e=>{if(e.key==="Enter")$("#enter").click();});
 $("#logout").onclick=(e)=>{e.stopPropagation();abrirPerfil();};
 function abrirPerfil(){
-  const escuro=localStorage.getItem("tr27_theme")==="dark";
   $("#modal").innerHTML=`<div class="modal"><div class="box">
     <h3>${esc(STATE.me||"")}</h3>
-    <button class="btn sec pf" id="pf-tema">${escuro?"☀️ Tema claro":"🌙 Tema escuro"}</button>
     <button class="btn sec pf" id="pf-meta">🎯 Minha meta de poupança</button>
     <button class="btn sec pf" id="pf-moeda">💱 Moeda: ${STATE.cur}</button>
     <button class="btn sec pf" id="pf-ajuda">❓ Como usar o app</button>
@@ -1430,7 +1435,6 @@ function abrirPerfil(){
   const close=()=>{$("#modal").innerHTML="";};
   $("#modal").querySelector(".modal").onclick=e=>{if(e.target===e.currentTarget)close();};
   $("#pf-fechar").onclick=close;
-  $("#pf-tema").onclick=()=>{toggleTheme();close();};
   $("#pf-sair").onclick=()=>{close();localStorage.removeItem(LS.me);STATE.me=null;showLogin();};
   $("#pf-moeda").onclick=()=>{const o=["BRL","USD","EUR"];STATE.cur=o[(o.indexOf(STATE.cur)+1)%3];localStorage.setItem(LS.cur,STATE.cur);close();renderAll();};
   $("#pf-meta").onclick=()=>{close();show("cofre");renderCofre();setTimeout(()=>{const m=$("#metaedit");if(m)m.click();},80);};
@@ -1449,7 +1453,7 @@ function mostrarIntro(forcado){
   if(!forcado){try{if(localStorage.getItem(LS.intro)==="1")return;}catch(e){}}
   const desk=_ehDesktop();
   const abrir=desk?"Clique":"Toque";
-  const dicaVia=["via",`O botão <b>✈ no topo</b> liga e desliga o <b>modo viagem</b>: reorganiza as abas para o dia a dia e mostra seu gasto em tempo real. Ele liga sozinho na data da viagem, mas você pode ligar antes ou desligar quando quiser.`];
+  const dicaVia=["via",`O <b>interruptor ✈ no topo</b> liga e desliga o <b>modo viagem</b>: reorganiza as abas para o dia a dia e mostra seu gasto em tempo real. Ele liga sozinho na data da viagem, mas você pode ligar antes ou desligar quando quiser.`];
   const dicas=desk?[
     ["inicio",`<b>Início</b> reúne o resumo da viagem. Clique em qualquer cartão pra abrir a aba inteira.`],
     dicaVia,
@@ -1585,7 +1589,6 @@ function animarNumeros(){
     requestAnimationFrame(step);
   });
 }
-$("#themebtn").onclick=toggleTheme;
 $("#fab").onclick=quickGasto;
 $("#viabtn").onclick=()=>{
   // 2 estados: liga/desliga. O clique define o oposto do estado atual e
@@ -1607,6 +1610,7 @@ function syncViaBtn(){
   b.classList.toggle("on",ativo);          // laranja quando o modo viagem está ativo
   b.classList.remove("viaoff");
   b.dataset.mode=ativo?"on":"off";
+  b.setAttribute("aria-checked",ativo?"true":"false");
   b.title=ativo?"Modo viagem ligado (toque para desligar)":"Modo viagem desligado (toque para ligar)";
   b.setAttribute("aria-label",b.title);
 }
