@@ -827,6 +827,8 @@ const DATA={
     ]},
     racha:{despesas:[],pagamentos:[]},
     reservas:{itens:[]},
+    tarefas:{itens:[]},
+    essenciais:{itens:[]},
     checklistModelo:[
       "Passaporte válido por 6 meses após a volta",
       "Autorização ETIAS aprovada",
@@ -877,6 +879,8 @@ const STATE={
   custos:JSON.parse(JSON.stringify(SEED.custos)),
   racha:JSON.parse(JSON.stringify(SEED.racha)),
   reservas:JSON.parse(JSON.stringify(SEED.reservas)),
+  tarefas:JSON.parse(JSON.stringify(SEED.tarefas)),
+  essenciais:JSON.parse(JSON.stringify(SEED.essenciais)),
   pessoas:{},
   me:localStorage.getItem(LS.me)||null,
   cur:localStorage.getItem(LS.cur)||""
@@ -965,6 +969,60 @@ function partesTZ(tz){
 }
 function hojeViagem(){const q=partesTZ(tzViagem());return `${q.year}-${q.month}-${q.day}`;}
 function agoraViagemStr(){const q=partesTZ(tzViagem());return `${q.year}-${q.month}-${q.day}T${q.hour}:${q.minute}`;}
+
+/* ---- exportar o roteiro pro calendário (.ics) — offline, sem servidor ----
+   Converte o horário local do destino para UTC (usando o fuso da viagem),
+   assim o evento cai na hora certa em qualquer aparelho. */
+function tzOffsetMin(tz,date){
+  try{
+    const dtf=new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+    const q={};dtf.formatToParts(date).forEach(x=>{if(x.type!=="literal")q[x.type]=x.value;});
+    const asUTC=Date.UTC(+q.year,+q.month-1,+q.day,+q.hour,+q.minute,+q.second);
+    return Math.round((asUTC-date.getTime())/60000);
+  }catch(e){return 0;}
+}
+function wallToUTC(Y,Mo,Da,h,mi,tz){
+  const guess=Date.UTC(Y,Mo-1,Da,h,mi,0);
+  const off=tzOffsetMin(tz,new Date(guess));
+  return new Date(guess-off*60000);
+}
+function fmtICS(dt){const z=n=>String(n).padStart(2,"0");
+  return dt.getUTCFullYear()+z(dt.getUTCMonth()+1)+z(dt.getUTCDate())+"T"+z(dt.getUTCHours())+z(dt.getUTCMinutes())+"00Z";}
+function icsEsc(s){return String(s||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\r?\n/g,"\\n");}
+function exportarICS(){
+  const tz=tzViagem(), dias=(STATE.roteiro.dias||[]), now=fmtICS(new Date());
+  let out=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Resenha Trip//PT-BR//","CALSCALE:GREGORIAN","METHOD:PUBLISH"], n=0;
+  dias.forEach(d=>{
+    const base=String(d.data).slice(0,10), pt=base.split("-").map(Number), Y=pt[0],Mo=pt[1],Da=pt[2];
+    (d.itens||[]).forEach(a=>{
+      const cid=cityOf(d.cidade);
+      const loc=[a.local,(cid&&cid.n&&cid.n!=="—")?cid.n:""].filter(Boolean).join(", ");
+      let ev=["BEGIN:VEVENT","UID:"+((a.id||("d"+n))+"@resenhatrip")+"","DTSTAMP:"+now,"SUMMARY:"+icsEsc(a.titulo||"Passeio")];
+      if(/^\d{1,2}:\d{2}$/.test(a.hora||"")){
+        const hm=a.hora.split(":").map(Number);
+        const st=wallToUTC(Y,Mo,Da,hm[0],hm[1],tz), en=new Date(st.getTime()+3600000);
+        ev.push("DTSTART:"+fmtICS(st),"DTEND:"+fmtICS(en));
+      }else{
+        const z=x=>String(x).padStart(2,"0");
+        const nd=new Date(Date.UTC(Y,Mo-1,Da+1));
+        ev.push("DTSTART;VALUE=DATE:"+Y+z(Mo)+z(Da),"DTEND;VALUE=DATE:"+nd.getUTCFullYear()+z(nd.getUTCMonth()+1)+z(nd.getUTCDate()));
+      }
+      if(loc)ev.push("LOCATION:"+icsEsc(loc));
+      if(a.nota)ev.push("DESCRIPTION:"+icsEsc(a.nota));
+      ev.push("END:VEVENT"); out=out.concat(ev); n++;
+    });
+  });
+  out.push("END:VCALENDAR");
+  if(!n){toast("Roteiro vazio");return;}
+  try{
+    const blob=new Blob([out.join("\r\n")],{type:"text/calendar;charset=utf-8"});
+    const url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url; a.download="resenha-trip-roteiro.ics";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    toast(`${n} passeios exportados`);
+  }catch(e){toast("Não foi possível exportar");}
+}
 function mesViagem(){const x=(STATE.config&&STATE.config.inicio)||"2027-10-01";return Math.max(0,Math.min(11,Number(x.slice(5,7))-1));}
 function climaCidade(nome){const d=dbCidade(nome);if(!d||!d.clima)return null;const m=d.clima[mesViagem()];return m?{min:m[0],max:m[1]}:null;}
 function fmtDateLong(s){const d=ymd(s);return `${d.getDate()} de ${["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][d.getMonth()]} de ${d.getFullYear()}`;}
@@ -1124,10 +1182,13 @@ function cityOf(k){return (STATE.config.cidades||[]).find(c=>c.k===k)||{k:k,n:"�
    "Louvre" do mundo. Não é interceptado pelo service worker (www.google.com está
    na lista NUNCA), então abre direto no Maps do celular. */
 const PIN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.4-6-10a6 6 0 1 1 12 0c0 4.6-6 10-6 10Z"/><circle cx="12" cy="11" r="2.1"/></svg>';
+const IS_IOS=(()=>{try{return /iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&(navigator.maxTouchPoints||0)>1);}catch(e){return false;}})();
 function mapsUrl(local,cidKey){
   const cid=cityOf(cidKey);
   const q=[local,(cid&&cid.n&&cid.n!=="—")?cid.n:""].filter(Boolean).join(", ");
-  return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q);
+  const enc=encodeURIComponent(q);
+  // no iPhone/iPad abre o Apple Maps; nos demais, o Google Maps
+  return IS_IOS?("https://maps.apple.com/?q="+enc):("https://www.google.com/maps/search/?api=1&query="+enc);
 }
 function mapBtn(local,cidKey,cls){
   if(!local)return "";
@@ -1265,6 +1326,8 @@ function listen(){
   doc1("custos","custos",SEED.custos);
   doc1("racha","racha",SEED.racha);
   doc1("reservas","reservas",SEED.reservas);
+  doc1("tarefas","tarefas",SEED.tarefas);
+  doc1("essenciais","essenciais",SEED.essenciais);
   FB.onSnapshot(FB.collection(db,NS.pessoas),opts,s=>{
     PEOPLE.forEach(p=>{if(!STATE.pessoas[p])STATE.pessoas[p]={meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};});
     s.forEach(d=>{const v=d.data()||{};STATE.pessoas[d.id]={meta:Number(v.meta)||0,verba:Number(v.verba)||0,depositos:v.depositos||[],compras:v.compras||[],checklist:v.checklist||[],pessoais:v.pessoais||[],realizados:v.realizados||[],mala:v.mala||[],malaTpls:v.malaTpls||[]};});
@@ -1275,12 +1338,12 @@ function loadLocal(){
   try{
     const raw=localStorage.getItem(LS.mock);
     if(raw){const o=JSON.parse(raw);
-      ["config","roteiro","custos","racha","reservas"].forEach(k=>{if(o[k])STATE[k]=Object.assign({},SEED[k],o[k]);});
+      ["config","roteiro","custos","racha","reservas","tarefas","essenciais"].forEach(k=>{if(o[k])STATE[k]=Object.assign({},SEED[k],o[k]);});
       if(o.pessoas)PEOPLE.forEach(p=>{if(o.pessoas[p])STATE.pessoas[p]=Object.assign(STATE.pessoas[p],o.pessoas[p]);});}
   }catch(e){console.warn(e);}
 }
 function saveLocal(){
-  try{localStorage.setItem(LS.mock,JSON.stringify({config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,reservas:STATE.reservas,pessoas:STATE.pessoas}));}catch(e){}
+  try{localStorage.setItem(LS.mock,JSON.stringify({config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,reservas:STATE.reservas,tarefas:STATE.tarefas,essenciais:STATE.essenciais,pessoas:STATE.pessoas}));}catch(e){}
 }
 async function saveDoc(id,obj){
   STATE[id]=Object.assign({},STATE[id],obj);
@@ -1449,8 +1512,8 @@ const ICON={
   reservas:'<path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4Z"/><path d="M14 6v12"/>'
 };
 const svgIcon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[k]||""}</svg>`;
-const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["reservas","Reservas"],["check","Checklist"],["racha","Racha"]];
-const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["reservas","Reservas"],["racha","Racha"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
+const TABS_PRE=[["inicio","Início"],["cofre","Cofre"],["custos","Custos"],["roteiro","Roteiro"],["reservas","Documentos"],["check","Checklist"],["racha","Racha"]];
+const TABS_VIA=[["inicio","Início"],["roteiro","Roteiro"],["reservas","Documentos"],["racha","Racha"],["check","Checklist"],["custos","Custos"],["cofre","Cofre"]];
 function emViagemAuto(){const c=STATE.config;return daysTo(c.inicio)<=0&&daysTo(c.fim)>=0;}
 /* modo viagem: "auto" segue as datas; "on"/"off" forçam manualmente (por aparelho) */
 function viaMode(){try{return localStorage.getItem(LS.viamode)||"auto";}catch(e){return "auto";}}
@@ -2515,17 +2578,22 @@ function renderCustos(){_sujo.delete("custos");
 
   const cmp=comparativo(me), reals=meusRealizados(me).slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
 
-  const _difTxt=Math.abs(cmp.dif)<0.005?"Em linha com o planejado.":
-    (cmp.dif>0?`<b style="color:var(--danger)">${fmt(cmp.dif)} acima</b> do planejado até agora.`:
-    `<b style="color:var(--ok)">${fmt(-cmp.dif)} abaixo</b> do planejado até agora.`);
   const cardRealTopo=`
   <div class="card tight">
-    <div class="row"><div class="grow"><div class="lbl">Planejado (seu total)</div>
-      <div class="disp money" style="font-size:24px">${fmt(cmp.plan)}</div></div>
-    <div style="text-align:right"><div class="lbl">Já gastei de verdade</div>
-      <div class="disp money" style="font-size:24px">${fmt(cmp.real)}</div></div>${infoBtn("Aqui comparamos o que você já pagou de verdade (seus lançamentos abaixo) com o seu plano total.")}</div>
-    <div class="rail ${cmp.dif>0.5?"dgr":"ok"}" style="margin:12px 0 8px"><i style="width:${cmp.plan>0?clamp(cmp.real/cmp.plan*100,0,100):0}%"></i></div>
-    <div class="note" style="margin:0">${_difTxt}</div>
+    <div class="row"><div class="grow">
+      <div class="lbl">Já gastei de verdade</div>
+      <div class="disp money" style="font-size:30px;margin-top:2px">${fmt(cmp.real)}</div>
+      <div class="note" style="margin:3px 0 0">de ${fmt(cmp.plan)} planejado (seu total)</div>
+    </div>${infoBtn("Compara o que você já pagou de verdade (seus lançamentos abaixo) com o seu plano total.")}</div>
+    ${emViagem()?
+      `<div class="rail ${cmp.dif>0.5?"dgr":"ok"}" style="margin:12px 0 6px"><i style="width:${cmp.plan>0?clamp(cmp.real/cmp.plan*100,0,100):0}%"></i></div>
+      <div class="row"><div class="note" style="margin:0">${cmp.plan>0?Math.round(clamp(cmp.real/cmp.plan*100,0,100))+"% do plano":"—"}</div>
+        <div class="note" style="margin:0 0 0 auto;color:${cmp.dif>0.5?"var(--danger)":(Math.abs(cmp.dif)<0.005?"var(--muted)":"var(--ok)")}">${Math.abs(cmp.dif)<0.005?"em linha":(cmp.dif>0?fmt(cmp.dif)+" acima":fmt(-cmp.dif)+" abaixo")}</div></div>`
+      :
+      `<div class="kpis" style="margin-top:12px">
+      <div class="kpi"><div class="k">Planejado</div><div class="v money">${fmt(cmp.plan)}</div></div>
+      <div class="kpi ${cmp.dif>0.5?"":"ok"}"><div class="k">Diferença</div><div class="v money">${Math.abs(cmp.dif)<0.005?"em linha":(cmp.dif>0?"+"+fmt(cmp.dif):"−"+fmt(-cmp.dif))}</div></div>
+    </div>`}
   </div>`;
   const cardSuaViagem=`
   <div class="card tight">
@@ -2833,7 +2901,8 @@ function renderRoteiro(){_sujo.delete("roteiro");
     </div>`;}).join(""):`<div class="empty">${roteiroCidade?"Nenhuma programação em "+esc(cityOf(roteiroCidade).n)+".":"Roteiro vazio.<br>O admin monta os dias por aqui."}</div>`}
   </div>
   ${adm?'<button class="btn sec" id="dayadd" style="margin-top:8px">+ Novo dia</button>':
-    '<div class="note" style="text-align:center">Sugestão de passeio? Manda pro Caio incluir.</div>'}`;
+    '<div class="note" style="text-align:center">Sugestão de passeio? Manda pro Caio incluir.</div>'}
+  ${(STATE.roteiro.dias||[]).some(d=>(d.itens||[]).length)?'<button class="btn gh sm" id="icsexp" style="margin-top:10px;width:100%">Exportar pro calendário (.ics)</button>':""}`;
 
   // filtros de cidade
   $("#p-roteiro").querySelectorAll("[data-cidfil]").forEach(el=>{
@@ -2852,6 +2921,7 @@ function renderRoteiro(){_sujo.delete("roteiro");
   const sb=$("#rotbusca");
   if(sb){sb.oninput=()=>{roteiroBusca=sb.value;const p=sb.selectionStart;renderRoteiro();const n=$("#rotbusca");if(n){n.focus();try{n.setSelectionRange(p,p);}catch(e){}}};}
   const rl=$("#rotlimpa");if(rl)rl.onclick=()=>{roteiroBusca="";renderRoteiro();};
+  const ie=$("#icsexp");if(ie)ie.onclick=exportarICS;
   if(!adm)return;
   const da=$("#dayadd");
   if(da)da.onclick=()=>openModal("Novo dia",[
@@ -2999,6 +3069,7 @@ function renderCheck(){_sujo.delete("check");
   <div class="seg" id="ckseg">
     <div data-cv="geral" class="${checkView==="geral"?"on":""}">Checklist geral</div>
     <div data-cv="mala" class="${checkView==="mala"?"on":""}">Mala</div>
+    <div data-cv="tarefas" class="${checkView==="tarefas"?"on":""}">Tarefas</div>
   </div>
 
   <div class="${checkView==="geral"?"":"hidden"}">
@@ -3109,11 +3180,13 @@ function renderCheck(){_sujo.delete("check");
         <div class="t"><div class="n">${esc(i.item)}</div>${i.cat?`<div class="s">${catDot(i.cat)}${esc(i.cat)}</div>`:""}</div>
         <button class="x" data-mdel="${i.id}" aria-label="Excluir">✕</button></div>`).join(""):""}
     <div class="note">Marque conforme for colocando na mala. Categorias ajudam a não esquecer nada — e a lista é só sua.</div>
-  </div>`;
+  </div>
+  ${tarefasBloco()}`;
 
   // sub-abas
   $("#ckseg").querySelectorAll("[data-cv]").forEach(el=>el.onclick=()=>{
     checkView=el.dataset.cv;localStorage.setItem("tr27_check",checkView);renderCheck();});
+  wireTarefas();
 
   // ---- Checklist geral ----
   const add=()=>{
@@ -3184,11 +3257,18 @@ function renderCheck(){_sujo.delete("check");
    cópias de documentos. É um doc compartilhado (viagem/reservas): todo
    mundo vê e pode adicionar. Cada item pode ter localizador, link e
    endereço (abre no mapa). Excluir mostra "Desfazer".               */
-const RESV_TIPOS=["Voo","Hotel","Trem","Transfer","Passeio","Seguro","Documento","Outro"];
+const RESV_TIPOS=["Voo","Hotel","Trem","Transfer","Passeio","Seguro","Documento"];
+function resvCategorias(){
+  const usados=[...new Set(resvItens().map(x=>x.tipo).filter(Boolean))];
+  return RESV_TIPOS.concat(usados.filter(c=>!RESV_TIPOS.includes(c)));
+}
 function resvItens(){return ((STATE.reservas&&STATE.reservas.itens)||[]).slice();}
 function abrirFormReserva(at){
-  openModal(at?"Editar reserva":"Nova reserva",[
-    {id:"tipo",label:"Tipo",type:"select",options:RESV_TIPOS,value:at?at.tipo:"Hotel"},
+  const NOVA="➕ Nova categoria…";
+  const cats=resvCategorias().slice();
+  if(at&&at.tipo&&!cats.includes(at.tipo))cats.unshift(at.tipo);
+  openModal(at?"Editar documento":"Novo documento",[
+    {id:"tipo",label:"Categoria",type:"select",options:cats.concat([NOVA]),value:at?at.tipo:"Hotel"},
     {id:"titulo",label:"Título",placeholder:"Ex.: Hotel Paris — 5 noites",value:at?at.titulo:""},
     {id:"quando",label:"Data (opcional)",type:"date",value:at?(at.quando||""):""},
     {id:"codigo",label:"Localizador / confirmação (opcional)",placeholder:"Ex.: 6-QK2P9",value:at?(at.codigo||""):""},
@@ -3197,21 +3277,127 @@ function abrirFormReserva(at){
     {id:"quem",label:"De quem é",type:"chips",value:(at&&Array.isArray(at.quem)&&at.quem.length)?at.quem.slice():PEOPLE.slice()},
     {id:"nota",label:"Observação (opcional)",type:"area",placeholder:"opcional",value:at?(at.nota||""):""}
   ],v=>{
-    if(!v.titulo){toast("Dê um título à reserva");return false;}
-    const item={id:at?at.id:uid(),tipo:v.tipo||"Outro",titulo:v.titulo};
-    if(v.quando)item.quando=v.quando;
-    if(v.codigo)item.codigo=v.codigo;
-    if(v.link)item.link=v.link;
-    if(v.local)item.local=v.local;
-    if(v.nota)item.nota=v.nota;
-    item.quem=(v.quem.length&&v.quem.length<PEOPLE.length)?v.quem:"todos";
-    if(at){saveDoc("reservas",{itens:resvItens().map(x=>x.id===at.id?item:x)});toast("Reserva atualizada");}
-    else{addArr("reservas","itens",item);toast("Reserva adicionada");}
+    if(!v.titulo){toast("Dê um título");return false;}
+    const salvar=(tipo)=>{
+      const item={id:at?at.id:uid(),tipo:tipo||"Documento",titulo:v.titulo};
+      if(v.quando)item.quando=v.quando;
+      if(v.codigo)item.codigo=v.codigo;
+      if(v.link)item.link=v.link;
+      if(v.local)item.local=v.local;
+      if(v.nota)item.nota=v.nota;
+      item.quem=(v.quem.length&&v.quem.length<PEOPLE.length)?v.quem:"todos";
+      if(at){saveDoc("reservas",{itens:resvItens().map(x=>x.id===at.id?item:x)});toast("Documento atualizado");}
+      else{addArr("reservas","itens",item);toast("Documento adicionado");}
+    };
+    if(v.tipo===NOVA){
+      setTimeout(()=>openModal("Nova categoria",[
+        {id:"nome",label:"Nome da categoria",placeholder:"Ex.: Ingressos"}
+      ],vc=>{ if(!vc.nome){toast("Dê um nome à categoria");return false;} salvar(vc.nome.trim()); }),40);
+      return;
+    }
+    salvar(v.tipo);
   });
 }
+/* ---- Tarefas do grupo (checklist compartilhado com responsável) ---- */
+function tarefasItens(){return ((STATE.tarefas&&STATE.tarefas.itens)||[]).slice();}
+function abrirFormTarefa(at){
+  openModal(at?"Editar tarefa":"Nova tarefa",[
+    {id:"texto",label:"Tarefa",placeholder:"Ex.: Reservar ingressos do Louvre",value:at?at.texto:""},
+    {id:"quem",label:"Responsável",type:"select",options:["A definir"].concat(PEOPLE),value:(at&&at.quem)?at.quem:"A definir"},
+    {id:"prazo",label:"Prazo (opcional)",type:"date",value:at?(at.prazo||""):""}
+  ],v=>{
+    if(!v.texto){toast("Escreva a tarefa");return false;}
+    const item={id:at?at.id:uid(),texto:v.texto,quem:v.quem||"A definir",feito:at?!!at.feito:false};
+    if(v.prazo)item.prazo=v.prazo;
+    if(at&&at.por&&item.feito)item.por=at.por;
+    if(at){saveDoc("tarefas",{itens:tarefasItens().map(x=>x.id===at.id?item:x)});toast("Tarefa atualizada");}
+    else{addArr("tarefas","itens",item);toast("Tarefa adicionada");}
+  });
+}
+function tarefasBloco(){
+  const its=tarefasItens();
+  const feitas=its.filter(x=>x.feito).length;
+  const pend=its.filter(x=>!x.feito), pron=its.filter(x=>x.feito);
+  const linha=(x)=>`<div class="li ${x.feito?"done":""}">
+      <div class="tick ${x.feito?"on":""}" data-ttog="${x.id}" role="button" tabindex="0">✓</div>
+      <div class="t"><div class="n">${esc(x.texto)}</div>
+        <div class="s">${x.quem&&x.quem!=="A definir"?esc(x.quem):'<span style="color:var(--warn)">sem responsável</span>'}${x.prazo?" · até "+esc(fmtDate(x.prazo)):""}${x.feito&&x.por?" · feito por "+esc(x.por):""}</div></div>
+      <button class="x" data-tedit="${x.id}" aria-label="Editar">✎</button>
+      <button class="x" data-tdel="${x.id}" aria-label="Excluir">✕</button></div>`;
+  return `<div class="${checkView==="tarefas"?"":"hidden"}">
+    <div class="card tight">
+      <div class="row"><div class="grow"><div class="lbl">Tarefas do grupo</div>
+        <div class="disp" style="font-size:26px">${feitas} <span style="font-size:15px;color:var(--muted);font-family:Inter">de ${its.length}</span></div></div>
+        <button class="btn sm" id="taradd">+ Tarefa</button></div>
+      <div class="note" style="margin-top:8px">Quem faz o quê antes de viajar — reservas, ingressos, documentos. É compartilhado: todo mundo vê, edita e marca como feito.</div>
+    </div>
+    ${its.length?
+      ((pend.length?`<div class="sect">A fazer<span class="r">${pend.length}</span></div>`+pend.map(linha).join(""):'<div class="okbox">Tudo feito! 🎉</div>')+
+      (pron.length?`<div class="sect">Feitas<span class="r">${pron.length}</span></div>`+pron.map(linha).join(""):""))
+      :'<div class="empty">Nenhuma tarefa ainda.<br>Adicione o que precisa ser resolvido e defina o responsável.</div>'}
+  </div>`;
+}
+function wireTarefas(){
+  const a=$("#taradd");if(a)a.onclick=()=>abrirFormTarefa(null);
+  $("#p-check").querySelectorAll("[data-ttog]").forEach(b=>b.onclick=()=>{
+    const it=tarefasItens().find(x=>x.id===b.dataset.ttog);if(!it)return;
+    const novo=Object.assign({},it,{feito:!it.feito});
+    if(novo.feito)novo.por=STATE.me;else delete novo.por;
+    saveDoc("tarefas",{itens:tarefasItens().map(x=>x.id===it.id?novo:x)});vibrar(8);});
+  $("#p-check").querySelectorAll("[data-tedit]").forEach(b=>b.onclick=()=>{
+    const it=tarefasItens().find(x=>x.id===b.dataset.tedit);if(it)abrirFormTarefa(it);});
+  $("#p-check").querySelectorAll("[data-tdel]").forEach(b=>b.onclick=()=>{
+    const it=tarefasItens().find(x=>x.id===b.dataset.tdel);if(!it)return;
+    delArr("tarefas","itens",it);toastUndo("Tarefa excluída",()=>addArr("tarefas","itens",it));});
+}
+
+/* ---- Essenciais / SOS (dados de emergência, compartilhado, offline) ---- */
+let sosAberto=false;
+function sosItens(){return ((STATE.essenciais&&STATE.essenciais.itens)||[]).slice();}
+function abrirFormSos(at){
+  openModal(at?"Editar essencial":"Novo essencial",[
+    {id:"rotulo",label:"O que é",placeholder:"Ex.: Embaixada do Brasil em Berlim",value:at?at.rotulo:""},
+    {id:"valor",label:"Telefone / número / anotação",placeholder:"Ex.: +49 30 7280700",value:at?at.valor:""}
+  ],v=>{
+    if(!v.rotulo){toast("Dê um nome ao item");return false;}
+    const item={id:at?at.id:uid(),rotulo:v.rotulo,valor:v.valor||""};
+    if(at){saveDoc("essenciais",{itens:sosItens().map(x=>x.id===at.id?item:x)});toast("Item atualizado");}
+    else{addArr("essenciais","itens",item);toast("Item adicionado");}
+  });
+}
+function sosCard(){
+  const its=sosItens();
+  const linha=(x)=>{const fone=(x.valor||"").trim();const soFone=/^[+\d\s()\-]{6,}$/.test(fone);
+    return `<div class="li">
+      <div class="t"><div class="n">${esc(x.rotulo)}</div>${x.valor?`<div class="s">${esc(x.valor)}</div>`:""}</div>
+      ${soFone?`<a class="maplink" href="tel:${esc(fone.replace(/[^+\d]/g,""))}" onclick="event.stopPropagation()"><span>ligar</span></a>`:""}
+      <button class="x" data-sedit="${x.id}" aria-label="Editar">✎</button>
+      <button class="x" data-sdel="${x.id}" aria-label="Excluir">✕</button></div>`;};
+  return `<div class="card tight">
+    <button class="mais-btn ${sosAberto?"aberto":""}" id="sos-btn" aria-expanded="${sosAberto?"true":"false"}" aria-controls="sos-box" style="margin:0">
+      <span>🆘 Essenciais / SOS · <b style="color:var(--orange)">112</b> emergência (Europa)</span><span class="mais-ch">⌄</span></button>
+    <div id="sos-box" ${sosAberto?"":"hidden"} style="margin-top:9px">
+      <div class="note" style="margin:0 0 8px">Telefones e números para uma emergência — apólice do seguro, embaixada, como bloquear o cartão, alergias. Fica offline durante a viagem.</div>
+      ${its.length?its.map(linha).join(""):'<div class="empty" style="padding:14px 8px">Nada aqui ainda.<br>Adicione seguro, embaixada e o telefone pra bloquear o cartão.</div>'}
+      <button class="btn sec" id="sosadd" style="margin-top:8px">+ Adicionar essencial</button>
+    </div>
+  </div>`;
+}
+function wireSos(){
+  const b=$("#sos-btn"),box=$("#sos-box");
+  if(b&&box)b.onclick=()=>{sosAberto=!sosAberto;box.hidden=!sosAberto;b.setAttribute("aria-expanded",sosAberto?"true":"false");b.classList.toggle("aberto",sosAberto);};
+  const a=$("#sosadd");if(a)a.onclick=()=>abrirFormSos(null);
+  $("#p-reservas").querySelectorAll("[data-sedit]").forEach(x=>x.onclick=()=>{
+    const it=sosItens().find(y=>y.id===x.dataset.sedit);if(it)abrirFormSos(it);});
+  $("#p-reservas").querySelectorAll("[data-sdel]").forEach(x=>x.onclick=()=>{
+    const it=sosItens().find(y=>y.id===x.dataset.sdel);if(!it)return;
+    delArr("essenciais","itens",it);toastUndo("Item excluído",()=>addArr("essenciais","itens",it));});
+}
+
 function renderReservas(){_sujo.delete("reservas");
   const itens=resvItens();
-  const ordTipo=t=>{const i=RESV_TIPOS.indexOf(t);return i<0?98:i;};
+  const cats=resvCategorias();
+  const ordTipo=t=>{const i=cats.indexOf(t);return i<0?98:i;};
   itens.sort((a,b)=>ordTipo(a.tipo)-ordTipo(b.tipo)||String(a.quando||"9999").localeCompare(String(b.quando||"9999")));
   const cardItem=it=>{
     const quem=(!Array.isArray(it.quem)||it.quem.length>=PEOPLE.length)?"":it.quem.map(esc).join(", ");
@@ -3234,13 +3420,14 @@ function renderReservas(){_sujo.delete("reservas");
   if(!itens.length){
     corpo=`<div class="empty">Nada guardado ainda.<br>Adicione a primeira reserva ou documento — fica disponível offline na viagem.</div>`;
   }else{
-    corpo=RESV_TIPOS.map(tp=>{
+    corpo=cats.map(tp=>{
       const doTipo=itens.filter(x=>(x.tipo||"Outro")===tp);
       if(!doTipo.length)return "";
       return `<div class="sect">${esc(tp)}<span class="r">${doTipo.length}</span></div>`+doTipo.map(cardItem).join("");
     }).join("");
   }
   $("#p-reservas").innerHTML=`
+  ${sosCard()}
   <div class="card tight">
     <div class="row"><div class="grow">
       <div class="lbl">Reservas & documentos</div>
@@ -3251,6 +3438,7 @@ function renderReservas(){_sujo.delete("reservas");
   </div>
   ${corpo}`;
 
+  wireSos();
   const add=$("#resadd");if(add)add.onclick=()=>abrirFormReserva(null);
   $("#p-reservas").querySelectorAll("[data-resedit]").forEach(b=>b.onclick=()=>{
     const it=resvItens().find(x=>x.id===b.dataset.resedit);if(it)abrirFormReserva(it);});
@@ -3697,7 +3885,7 @@ function renderAdmin(){_sujo.delete("admin");
   const bke=$("#bkexp");
   if(bke)bke.onclick=()=>{
     const dump={app:"Resenha Trip",formato:1,quando:new Date().toISOString(),
-      config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,reservas:STATE.reservas,pessoas:STATE.pessoas};
+      config:STATE.config,roteiro:STATE.roteiro,custos:STATE.custos,racha:STATE.racha,reservas:STATE.reservas,tarefas:STATE.tarefas,essenciais:STATE.essenciais,pessoas:STATE.pessoas};
     try{
       const blob=new Blob([JSON.stringify(dump,null,2)],{type:"application/json"});
       const a=document.createElement("a");
@@ -3724,6 +3912,8 @@ function renderAdmin(){_sujo.delete("admin");
       saveDoc("custos",o.custos||{itens:[]});
       saveDoc("racha",o.racha||{despesas:[],pagamentos:[]});
       saveDoc("reservas",o.reservas||{itens:[]});
+      saveDoc("tarefas",o.tarefas||{itens:[]});
+      saveDoc("essenciais",o.essenciais||{itens:[]});
       PEOPLE.forEach(p=>{if(o.pessoas[p])savePessoa(p,o.pessoas[p]);});
       bif.value="";toast("Backup restaurado ✓");
     };
