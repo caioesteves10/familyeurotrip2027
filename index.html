@@ -2869,7 +2869,7 @@ function renderRoteiro(){_sujo.delete("roteiro");
   <div class="card tight">
     <div class="row">${(STATE.config.cidades||[]).map(c=>`<div class="grow" style="text-align:center">
       <div class="pill ${c.k} citychip ${roteiroCidade===c.k?"sel":""}" data-cidfil="${esc(c.k)}" role="button" tabindex="0" style="display:inline-block;cursor:pointer">${esc(c.n)}</div>
-      <div class="note" style="margin-top:5px">${fmtDate(c.de).slice(4)} – ${fmtDate(c.ate).slice(4)}${(()=>{const cl=climaCidade(c.n);return cl?` · ${cl.min}–${cl.max}°C`:"";})()}</div></div>`).join("")}</div>
+      <div class="note" style="margin-top:5px">${fmtDate(c.de).slice(4)} – ${fmtDate(c.ate).slice(4)}${(()=>{const cl=climaCidade(c.n);return cl?`<br>${cl.min}–${cl.max}°C`:"";})()}</div></div>`).join("")}</div>
     ${roteiroCidade?`<div class="note" style="text-align:center;margin-top:8px">Mostrando só ${esc(cityOf(roteiroCidade).n)} · <span class="lnk" id="cidlimpa">ver tudo</span></div>`:""}
   </div>
   ${(emV&&prox.length)?`<div class="strip" style="margin-bottom:8px">
