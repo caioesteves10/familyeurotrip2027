@@ -1,0 +1,145 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Migrar Resenha Trip — família</title>
+<style>
+  :root{--navy:#1B3A6B;--orange:#E8722E;--line:#dfe5ee;--muted:#5a6675;--ok:#1a7f4b;--danger:#c0392b}
+  *{box-sizing:border-box} body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;margin:0 auto;padding:20px;color:#12203a;background:#f4f7fb}
+  h1{font-size:20px;color:var(--navy);margin:0 0 4px} .sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  button{font:inherit;font-weight:700;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;margin:4px 6px 4px 0}
+  .b1{background:var(--navy);color:#fff} .b2{background:var(--orange);color:#fff} .bg{background:#eef2f8;color:var(--navy)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  pre{white-space:pre-wrap;word-break:break-word;background:#0d1526;color:#d7e2f4;padding:12px;border-radius:10px;font-size:12.5px;max-height:340px;overflow:auto}
+  code{background:#eef2f8;padding:1px 5px;border-radius:5px}
+  label.force{display:block;margin-top:10px;font-size:13px;color:var(--danger)}
+  .warn{color:var(--danger);font-weight:700}
+</style></head><body>
+<h1>Migrar Resenha Trip → formato multi-viagem</h1>
+<p class="sub">Roda no mesmo domínio da família e usa o <code>config.js</code> que já está no repositório. Copia os dados antigos (<code>viagem/*</code>, <code>viajantes/*</code>) para <code>viagens/RESENHA/…</code>. <b>Não apaga nada do formato antigo.</b></p>
+
+<div class="card">
+  <b>Passo 1 — Analisar (não grava nada)</b>
+  <div class="sub" style="margin:6px 0 10px">Lê os dois formatos e mostra o que será feito.</div>
+  <button class="b1" id="btnA">Analisar</button>
+  <button class="b2" id="btnM" disabled>Migrar agora</button>
+  <label class="force"><input type="checkbox" id="force"> Forçar (sobrescrever mesmo se já migrado — cuidado: <span class="warn">reverte edições novas</span>)</label>
+</div>
+<div class="card"><b>Relatório</b><pre id="log">— aguardando —</pre></div>
+
+<script type="module">
+const CODIGO="RESENHA";
+const PESSOAS=["Caio","Bê","Ronaldo","Shirlei"];
+const DADOS_COPIAR=["config","roteiro","custos","racha"];
+const DADOS_NOVOS={reservas:{itens:[]},diario:{itens:[]},tarefas:{itens:[]},essenciais:{itens:[]}};
+const SVER="10.12.2";
+const el=document.getElementById("log"); let LOG="";
+const log=(m)=>{LOG+=m+"\n";el.textContent=LOG;};
+const clear=()=>{LOG="";el.textContent="";};
+
+let FB=null,db=null,UID=null,cfg=null,APPKEY="";
+async function boot(){
+  try{const C=await import("./config.js?v=2");
+    cfg=C.firebaseConfig; APPKEY=C.APPCHECK_KEY||"";
+    if(!cfg||!cfg.apiKey)throw new Error("config.js sem firebaseConfig.apiKey");
+  }catch(e){log("✖ Não achei/entendi o config.js: "+e.message);throw e;}
+  const A=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-app.js`);
+  const F=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-firestore.js`);
+  const U=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-auth.js`);
+  FB=F; const app=A.initializeApp(cfg);
+  if(APPKEY){try{const AC=await import(`https://www.gstatic.com/firebasejs/${SVER}/firebase-app-check.js`);
+    AC.initializeAppCheck(app,{provider:new AC.ReCaptchaV3Provider(APPKEY),isTokenAutoRefreshEnabled:true});}catch(e){log("• App Check não iniciou (segue): "+(e&&e.code||e));}}
+  db=F.getFirestore(app);
+  const auth=U.getAuth(app);
+  await new Promise(res=>{const un=U.onAuthStateChanged(auth,u=>{un();res(u);});});
+  if(!auth.currentUser)await U.signInAnonymously(auth);
+  UID=auth.currentUser.uid;
+  log("✓ Conectado. Seu UID (será dono/1º membro): "+UID);
+}
+
+const D=(...seg)=>FB.doc(db,...seg);
+async function getDoc(ref){const s=await FB.getDoc(ref);return s.exists()?s.data():null;}
+
+async function analisar(){
+  clear();
+  try{await boot();}catch(e){return null;}
+  log("\n— FORMATO ANTIGO (viagem/*, viajantes/*) —");
+  const antigo={};
+  for(const k of DADOS_COPIAR){const d=await getDoc(D("viagem",k));antigo[k]=d;log(`  viagem/${k}: ${d?"OK":"— ausente —"}`);}
+  const via={};
+  for(const p of PESSOAS){const d=await getDoc(D("viajantes",p));via[p]=d;
+    const dep=d&&d.depositos?d.depositos.length:0, ck=d&&d.checklist?d.checklist.length:0;
+    log(`  viajantes/${p}: ${d?`OK (depósitos:${dep}, checklist:${ck})`:"— ausente —"}`);}
+  log("\n— DESTINO (viagens/"+CODIGO+"/…) —");
+  const resumo=await getDoc(D("viagens",CODIGO));
+  const seeded=await getDoc(D("viagens",CODIGO,"dados","seeded"));
+  log("  viagens/"+CODIGO+": "+(resumo?"JÁ EXISTE":"não existe (será criado)"));
+  log("  dados/seeded: "+(seeded?"JÁ MIGRADO ANTES ⚠":"não (primeira migração)"));
+  const novos=[];
+  for(const k of Object.keys(DADOS_NOVOS)){const d=await getDoc(D("viagens",CODIGO,"dados",k));if(!d)novos.push(k);}
+  log("\n— PLANO —");
+  log("  • criar/mesclar resumo viagens/"+CODIGO+" (dono+membro = você, codigo=RESENHA)");
+  DADOS_COPIAR.forEach(k=>log("  • copiar viagem/"+k+" → viagens/"+CODIGO+"/dados/"+k));
+  PESSOAS.forEach(p=>log("  • copiar viajantes/"+p+" → viagens/"+CODIGO+"/viajantes/"+p));
+  log("  • criar docs novos vazios: "+(novos.length?novos.join(", "):"nenhum (já existem)"));
+  log("  • marcar dados/seeded (trava o auto-seed)");
+  if(seeded)log("\n"+"⚠ JÁ FOI MIGRADO. Migrar de novo só com 'Forçar' — e isso REVERTE edições feitas no app novo.");
+  window.__mig={antigo,via,resumoExiste:!!resumo,seededExiste:!!seeded,novos};
+  document.getElementById("btnM").disabled=false;
+  log("\n✓ Análise pronta. Se estiver certo, clique 'Migrar agora'.");
+}
+
+async function migrar(){
+  const m=window.__mig; if(!m){log("Rode 'Analisar' primeiro.");return;}
+  const force=document.getElementById("force").checked;
+  if(m.seededExiste&&!force){log("\n✖ Já migrado antes. Marque 'Forçar' se tem certeza.");return;}
+  document.getElementById("btnM").disabled=true;
+  log("\n— GRAVANDO —");
+  try{
+    const now=Date.now();
+    const pessoasCfg=PESSOAS.map((n,i)=>({id:"p"+(i+1),nome:n}));
+    // resumo (não sobrescreve dono se já houver)
+    const resumoAtual=await getDoc(D("viagens",CODIGO))||{};
+    const cfgAnt=m.antigo.config||{};
+    const resumo={
+      nome:cfgAnt.nome||"Resenha Trip 2027",
+      tagline:cfgAnt.tagline||"",
+      cidades:(cfgAnt.cidades||[]).map(c=>c&&(c.n||c.nome)).filter(Boolean),
+      inicio:cfgAnt.inicio||"", fim:cfgAnt.fim||"",
+      pessoasCard:PESSOAS.map(n=>({n})),
+      codigo:CODIGO,
+      membros:FB.arrayUnion(UID),
+      membrosInfo:Object.assign({},resumoAtual.membrosInfo||{},{[UID]:"Caio"}),
+      dono:resumoAtual.dono||UID,
+      pendentes:resumoAtual.pendentes||[], pendentesInfo:resumoAtual.pendentesInfo||{},
+      convidados:resumoAtual.convidados||[],
+      criadoEm:resumoAtual.criadoEm||now, atualizadoEm:now
+    };
+    await FB.setDoc(D("viagens",CODIGO),resumo,{merge:true});
+    log("  ✓ resumo viagens/"+CODIGO);
+    // dados copiados
+    for(const k of DADOS_COPIAR){
+      let d=m.antigo[k]; if(!d){log("  • pulo dados/"+k+" (não existia no antigo)");continue;}
+      if(k==="config"){d=Object.assign({},d,{codigo:CODIGO});
+        if(!Array.isArray(d.pessoas)||!d.pessoas.length)d.pessoas=pessoasCfg;}
+      await FB.setDoc(D("viagens",CODIGO,"dados",k),d);
+      log("  ✓ dados/"+k);
+    }
+    // viajantes
+    for(const p of PESSOAS){const d=m.via[p]||{meta:0,depositos:[],compras:[],checklist:[],pessoais:[],realizados:[],mala:[]};
+      await FB.setDoc(D("viagens",CODIGO,"viajantes",p),d);log("  ✓ viajantes/"+p);}
+    // docs novos só se faltando (ou forçar)
+    for(const k of Object.keys(DADOS_NOVOS)){
+      const existe=!m.novos.includes(k);
+      if(existe&&!force){log("  • mantenho dados/"+k+" (já existe)");continue;}
+      await FB.setDoc(D("viagens",CODIGO,"dados",k),DADOS_NOVOS[k]);log("  ✓ dados/"+k+" (vazio)");
+    }
+    // seeded trava
+    await FB.setDoc(D("viagens",CODIGO,"dados","seeded"),{done:true,at:now,migradoDe:"viagem/*"});
+    log("  ✓ dados/seeded");
+    log("\n✅ MIGRAÇÃO CONCLUÍDA. Código da viagem: "+CODIGO);
+    log("Os dados ANTIGOS continuam intactos em viagem/* e viajantes/* (rollback).");
+  }catch(e){log("\n✖ ERRO: "+((e&&e.code)||"")+" "+((e&&e.message)||e));log("Confira se as REGRAS TEMPORÁRIAS permissivas estão aplicadas.");}
+}
+document.getElementById("btnA").onclick=()=>analisar().catch(e=>log("✖ "+(e&&e.message||e)));
+document.getElementById("btnM").onclick=()=>migrar();
+</script></body></html>
