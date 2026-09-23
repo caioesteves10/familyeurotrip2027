@@ -2248,7 +2248,7 @@ function reinserir(arr,item,idx){
   c.splice(Math.max(0,Math.min(c.length,idx==null?c.length:idx)),0,item);
   return c;
 }
-function isAdmin(){return MOCK||IS_ADMIN||localStorage.getItem(LS.admin)==="1";}
+function isAdmin(){return MOCK||IS_ADMIN||localStorage.getItem(LS.admin)==="1"||(!!STATE.me&&PEOPLE.indexOf(STATE.me)>-1);}
 function cityOf(k){return (STATE.config.cidades||[]).find(c=>c.k===k)||{k:k,n:"—"};}
 /* ---- local no mapa: link que abre o app de mapas nativo (funciona offline) ---
    Monta a busca com o nome do lugar + a cidade do dia, pra não cair em outro
@@ -5672,9 +5672,6 @@ function renderCustos(){_sujo.delete("custos");
   </div>
   <div class="cseg-hint note">${({plan:"Tudo que você planeja gastar — sua parte no grupo e seus extras.",real:"O que você já pagou de verdade, comparado com o plano."})[custosView]||""}</div>
 
-  <div class="${custosView==="plan"?"":"hidden"}">
-    ${ehSolo()?"":blocoGrupoCustos(me,tot,totPess)}
-  </div>
 
   <div class="${custosView==="plan"?"":"hidden"}">
     <div class="sect">Custos do grupo<span class="r">${fmt(tot)}</span></div>
@@ -5710,6 +5707,10 @@ function renderCustos(){_sujo.delete("custos");
         return _cgrp("extras",c,fmt(totC),inner);
       }).join("")+`</div>`;
     })()}
+  </div>
+
+  <div class="${custosView==="plan"?"":"hidden"}">
+    ${ehSolo()?"":blocoGrupoCustos(me,tot,totPess)}
   </div>
 
   <div class="${custosView==="real"?"":"hidden"}">
