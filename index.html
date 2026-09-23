@@ -3415,7 +3415,8 @@ function enterApp(){
   if(emViagem()&&!sessionStorage.getItem("tr27_via")){curTab="roteiro";try{sessionStorage.setItem("tr27_via","1");}catch(e){}}
   // mostra esqueleto enquanto o banco não respondeu (só quando online e sem dados ainda)
   if(_primeiraCarga&&!MOCK){$$(".panel-v").forEach(p=>p.innerHTML=skeleton());applyTab();}
-  if(!MOCK&&MEU_VINCULO&&MEU_VINCULO[VIAGEM.id])STATE.me=MEU_VINCULO[VIAGEM.id];
+  /* FAMÍLIA: o PIN é quem manda. Grava o vínculo desta viagem = pessoa logada. */
+  if(!MOCK&&STATE.me&&PEOPLE.includes(STATE.me)){STATE.conta=STATE.me;MEU_VINCULO[VIAGEM.id]=STATE.me;try{if(UID)localStorage.setItem("tr27_vinc_"+UID,JSON.stringify(MEU_VINCULO));}catch(e){}}
   $("#mename").textContent=STATE.me;
   try{atualizarBadgeNotif();}catch(e){}
   const h=new Date().getHours(),sd=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
@@ -4237,6 +4238,13 @@ function garantirVinculoPessoa(){
   if(MOCK||!UID)return;
   if(!PEOPLE.length)return;
   const tid=VIAGEM.id;
+  /* FAMÍLIA: o PIN manda — a pessoa logada define o vínculo desta viagem. */
+  if(STATE.me&&PEOPLE.includes(STATE.me)){
+    if(MEU_VINCULO[tid]!==STATE.me){MEU_VINCULO[tid]=STATE.me;
+      try{if(UID)localStorage.setItem("tr27_vinc_"+UID,JSON.stringify(MEU_VINCULO));}catch(e){}
+      if(!MOCK&&db&&UID){try{FB.setDoc(FB.doc(db,"usuarios",UID),{euSou:MEU_VINCULO},{merge:true});}catch(e){}}}
+    return;
+  }
   let quem=MEU_VINCULO[tid];
   if(!quem&&UID){try{const m=JSON.parse(localStorage.getItem("tr27_vinc_"+UID)||"{}");if(m&&m[tid]){MEU_VINCULO=m;quem=m[tid];}}catch(e){}}
   if(quem&&PEOPLE.includes(quem)){ if(STATE.me!==quem){STATE.me=quem;renderAll();} return; }
