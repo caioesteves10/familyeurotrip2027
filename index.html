@@ -2353,24 +2353,24 @@ async function bootTela(){
   showViagens();
 }
 async function onAuth(user){
+  /* FAMÍLIA: entrada por PIN + auth ANÔNIMA (sem e-mail). O UID anônimo
+     persiste no aparelho e amarra a pessoa às viagens/perfil, como antes. */
   if(!user){
     UID=null;STATE.uid=null;IS_ADMIN=false;
-    if(!DEV)showLogin();
-    _bootResolve&&_bootResolve();
-    return;
-  }
-  const social=(user.providerData||[]).some(p=>/google|apple/i.test((p&&p.providerId)||""));
-  if(!user.emailVerified && !social){
-    mostrarVerificacao(user);
+    if(!DEV){try{await AUTHM.signInAnonymously(auth);}catch(e){console.warn("anon:",e&&e.code);showLogin();}}
     _bootResolve&&_bootResolve();
     return;
   }
   UID=user.uid;STATE.uid=UID;
   try{MEU_VINCULO=JSON.parse(localStorage.getItem("tr27_vinc_"+UID)||"{}")||{};}catch(e){MEU_VINCULO={};}
-  IS_ADMIN=ADMIN_EMAILS.map(x=>String(x).toLowerCase()).includes(String(user.email||"").toLowerCase());
-  STATE.me=user.displayName||(user.email?user.email.split("@")[0]:"Você");
-  STATE.conta=STATE.me;
-  try{localStorage.setItem(LS.me,STATE.me);}catch(e){}
+  IS_ADMIN=false; // admin é por PIN (aba Admin), não por e-mail
+  const meSalvo=localStorage.getItem(LS.me)||"";
+  if(!meSalvo || PEOPLE.indexOf(meSalvo)<0){
+    _bootResolve&&_bootResolve();
+    showLogin();            // ainda não escolheu a pessoa neste aparelho
+    return;
+  }
+  STATE.me=meSalvo;STATE.conta=meSalvo;
   try{await garantirPerfil();}catch(e){}
   _bootResolve&&_bootResolve();
   bootTela().then(()=>{if(LINK_ENTRAR&&!MOCK){const c=LINK_ENTRAR;LINK_ENTRAR="";setTimeout(()=>abrirEntrarCodigo(c),200);}});
@@ -2665,10 +2665,35 @@ function loginSplash(){
   $("#app").classList.add("hidden");$("#nav").classList.add("hidden");$("#viagens").classList.add("hidden");
   $("#login").classList.remove("hidden");
 }
+let _pickPIN=null;
 function showLogin(){
   $("#app").classList.add("hidden");$("#nav").classList.add("hidden");$("#viagens").classList.add("hidden");
   $("#login").classList.remove("hidden");
-  renderLogin();
+  _pickPIN=null;
+  $("#login").innerHTML=`
+    <div class="kicker" style="text-align:center">Paris · Munique · Berlim · out 2027</div>
+    <div class="disp">Resenha<br>Trip</div>
+    <div class="ll">Escolha seu nome e digite sua senha</div>
+    <div id="pgrid" class="pgrid"></div>
+    <div class="pininp"><input id="pin" type="password" autocomplete="current-password" placeholder="senha" aria-label="Senha"></div>
+    <button id="enter" class="btn">Entrar</button>
+    <div id="lerr" class="err"></div>`;
+  $("#pgrid").innerHTML=PEOPLE.map(n=>`<button class="pbtn" data-n="${esc(n)}">${esc(n)}</button>`).join("");
+  $("#pgrid").querySelectorAll(".pbtn").forEach(b=>b.onclick=()=>{_pickPIN=b.dataset.n;$("#pgrid").querySelectorAll(".pbtn").forEach(x=>x.classList.toggle("on",x===b));});
+  const entrar=async()=>{
+    const pin=$("#pin").value;
+    if(!_pickPIN){$("#lerr").textContent="Escolha seu nome.";return;}
+    const b=$("#enter");b.disabled=true;b.textContent="Conferindo…";
+    const ok=await checarPessoa(_pickPIN,pin);
+    b.disabled=false;b.textContent="Entrar";
+    if(!ok){$("#lerr").textContent="Senha incorreta.";$("#pin").value="";return;}
+    STATE.me=_pickPIN;STATE.conta=_pickPIN;try{localStorage.setItem(LS.me,_pickPIN);}catch(e){}
+    try{await garantirPerfil();}catch(e){}
+    if(MOCK){showViagens();return;}
+    bootTela();
+  };
+  $("#enter").onclick=entrar;
+  $("#pin").addEventListener("keydown",e=>{if(e.key==="Enter")entrar();});
 }
 function renderLogin(){
   const criar=_authMode==="criar";
@@ -2777,10 +2802,11 @@ function mostrarVerificacao(user){
   $("#vf-sair").onclick=async()=>{try{if(auth)await auth.signOut();}catch(e){}_authMode="entrar";};
 }
 async function sairDaConta(){
-  try{if(auth&&auth.currentUser)await auth.signOut();}catch(e){}
+  /* FAMÍLIA: só troca a pessoa (mantém o UID anônimo → não perde acesso/perfil). */
   try{localStorage.removeItem(LS.me);}catch(e){}
-  STATE.me=null;
-  if(!auth||!auth.currentUser)showLogin();
+  try{localStorage.removeItem(LS.admin);}catch(e){}
+  STATE.me=null;STATE.conta=null;
+  showLogin();
 }
 {const _vh=$("#vg-hamb");if(_vh)_vh.onclick=(e)=>{e.stopPropagation();abrirPerfil();};}
 {const _ab=$("#aj-back");if(_ab)_ab.onclick=fecharAjustes;}
