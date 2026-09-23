@@ -3071,7 +3071,7 @@ function wireViagens(box,vs){
   box.querySelectorAll(".pa-ok").forEach(t=>t.onclick=e=>{e.stopPropagation();const id=t.dataset.arq;arquivarViagem(id,!ARQUIVADAS[id]);});
   const tog=$("#vg-hist-tog");if(tog)tog.onclick=()=>{const h=$("#vg-hist");if(h){h.hidden=!h.hidden;tog.classList.toggle("aberto",!h.hidden);}};
   const bn=$("#vg-nova");if(bn)bn.onclick=abrirCriarViagem;
-  const bc=$("#vg-cod");if(bc)bc.onclick=abrirEntrarCodigo;
+  const bc=$("#vg-cod");if(bc)bc.onclick=()=>abrirEntrarCodigo();
   const ba=$("#vg-admin");if(ba)ba.onclick=verTodasViagensAdmin;
 }
 function ligarSwipe(el){
@@ -3379,7 +3379,7 @@ function abrirEntrarCodigo(prefill){
   </div></div>`;
   const close=()=>{$("#modal").innerHTML="";};
   $("#ec-cancel").onclick=close;
-  const inp=$("#ec-code");if(prefill){inp.value=String(prefill).toUpperCase();}inp.focus();
+  const inp=$("#ec-code");if(prefill&&typeof prefill==="string"){inp.value=prefill.toUpperCase();}inp.focus();
   inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("#ec-ok").click();}});
   $("#ec-ok").onclick=async()=>{
     const err=$("#ec-err"),btn=$("#ec-ok");
